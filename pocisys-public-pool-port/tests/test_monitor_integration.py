@@ -60,6 +60,7 @@ class MonitorIntegrationTests(unittest.TestCase):
 
     def tearDown(self):
         self.server.shutdown()
+        self.server.server_close()
         self.temp.cleanup()
 
     def test_full_poll_reads_pool_node_workers_and_matures_block(self):
