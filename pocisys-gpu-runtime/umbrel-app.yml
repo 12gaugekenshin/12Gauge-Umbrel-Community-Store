@@ -4,7 +4,7 @@ category: ai
 name: PoCiSys GPU Runtime
 version: "0.1.5"
 tagline: Run private local AI on your Tesla P100
-icon: icon-v2.png
+icon: https://raw.githubusercontent.com/12gaugekenshin/PoCiSys-GPU-Runtime/main/pocisys-gpu-runtime/icon-v2.png
 description: >-
   A hardware-specific Tesla P100 inference service for umbrelOS. It prepares
   the NVIDIA driver, validates the card, starts a private Ollama endpoint, and

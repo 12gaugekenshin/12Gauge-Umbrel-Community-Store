@@ -4,7 +4,7 @@ category: bitcoin
 name: PoCiSys Hash Monitor
 version: "1.5.1"
 tagline: One clean dashboard for your SHA-256 miners
-icon: icon-v2.png
+icon: https://raw.githubusercontent.com/12gaugekenshin/PoCi-Hash-Monitor/main/pocisys-hash-monitor/icon-v2.png
 description: >-
   A lightweight, read-only dashboard for AxeOS, NerdAxe-style, and LuxOS
   miners. See hashrate, temperatures, cooling, shares, pool workers, network
