@@ -34,7 +34,7 @@ class PoolDatabase:
             ).fetchall()
             return [dict(row) for row in rows]
 
-    def workers(self):
+    def workers(self, active_within_seconds=None):
         with closing(self._connect()) as db:
             db.row_factory = sqlite3.Row
             table = self._table_with_columns(
@@ -42,8 +42,14 @@ class PoolDatabase:
             )
             if not table:
                 return []
+            where = "deletedAt IS NULL"
+            parameters = []
+            if active_within_seconds is not None:
+                where += " AND julianday(updatedAt) >= julianday('now', ?)"
+                parameters.append(f"-{max(1, int(active_within_seconds))} seconds")
             rows = db.execute(
                 f'SELECT address,clientName,sessionId,userAgent,startTime,bestDifficulty,hashRate,updatedAt '
-                f'FROM "{table}" WHERE deletedAt IS NULL ORDER BY updatedAt DESC'
+                f'FROM "{table}" WHERE {where} ORDER BY updatedAt DESC',
+                parameters,
             ).fetchall()
             return [dict(row) for row in rows]

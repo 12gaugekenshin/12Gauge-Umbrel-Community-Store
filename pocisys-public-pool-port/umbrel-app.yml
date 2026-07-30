@@ -2,7 +2,7 @@ manifestVersion: 1
 id: pocisys-public-pool-port
 category: bitcoin
 name: PoCiSys Public Pool Port
-version: "0.1.3"
+version: "0.1.4"
 tagline: Your node, your pool, verified all the way to maturity
 icon: icon.svg
 description: >-
@@ -33,9 +33,10 @@ path: ""
 defaultUsername: ""
 defaultPassword: ""
 releaseNotes: >-
-  Fixes the live Public Pool API route used by the dashboard, makes first-run
-  storage initialization compatible with Umbrel bind mounts, and retains the
-  collision-free preview Stratum port 3334 beside the stock pool.
+  Uses fresh active-worker rows for the share-estimated hashrate and worker
+  count instead of Public Pool's cached aggregate, labels the estimate clearly,
+  adds exact upstream attribution, and records successful isolated regtest ASIC
+  block-submission validation. Stratum remains on preview port 3334.
 widgets:
   - id: pool-stats
     type: four-stats

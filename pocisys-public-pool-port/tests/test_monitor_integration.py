@@ -31,7 +31,9 @@ class FakeServices(BaseHTTPRequestHandler):
         if self.path != "/api/pool":
             self.send_error(404)
             return
-        self._send({"totalHashRate": 500000000000, "totalMiners": 1, "blockHeight": 900000, "blocksFound": []})
+        # Deliberately stale/cached aggregate; current telemetry must come from
+        # the fresh worker rows instead.
+        self._send({"totalHashRate": 900000000000, "totalMiners": 9, "blockHeight": 900000, "blocksFound": []})
 
     def do_POST(self):
         request = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
@@ -57,7 +59,7 @@ class MonitorIntegrationTests(unittest.TestCase):
               CREATE TABLE client_entity(address TEXT,clientName TEXT,sessionId TEXT,userAgent TEXT,startTime TEXT,bestDifficulty REAL,hashRate REAL,updatedAt TEXT,deletedAt TEXT);
             """)
             db.execute("INSERT INTO blocks_entity VALUES(1,0,'1A1zP1','genesis','00000001',?,'2009-01-03','2009-01-03',NULL)", (GENESIS_BLOCK,))
-            db.execute("INSERT INTO client_entity VALUES('bc1qtest','garage','abc12345','Bitaxe','now',10,500000000000,'now',NULL)")
+            db.execute("INSERT INTO client_entity VALUES('bc1qtest','garage','abc12345','Bitaxe','now',10,500000000000,datetime('now'),NULL)")
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), FakeServices)
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
 
@@ -80,6 +82,10 @@ class MonitorIntegrationTests(unittest.TestCase):
         self.assertTrue(status["pool"]["online"])
         self.assertTrue(status["node"]["online"])
         self.assertEqual(status["workers"][0]["clientName"], "garage")
+        self.assertEqual(status["totalHashRate"], 500000000000)
+        self.assertEqual(status["totalMiners"], 1)
+        self.assertEqual(status["hashrateSource"], "active-worker-share-estimate")
+        self.assertNotEqual(status["totalHashRate"], status["pool"]["totalHashRate"])
         self.assertEqual(status["candidates"][0]["status"], "mature")
 
 

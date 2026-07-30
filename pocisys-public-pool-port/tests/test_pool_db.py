@@ -22,7 +22,8 @@ class PoolDatabaseTests(unittest.TestCase):
                   bestDifficulty REAL, hashRate REAL, updatedAt TEXT, deletedAt TEXT
                 );
                 INSERT INTO renamed_blocks VALUES(7,900000,'bc1qtest','garage','abc12345','00','now','now',NULL);
-                INSERT INTO renamed_clients VALUES('bc1qtest','garage','abc12345','Bitaxe','now',1234,500000000000,'now',NULL);
+                INSERT INTO renamed_clients VALUES('bc1qtest','garage','abc12345','Bitaxe','now',1234,500000000000,datetime('now'),NULL);
+                INSERT INTO renamed_clients VALUES('bc1qtest','stale','old12345','Bitaxe','old',100,100000000000,'2000-01-01 00:00:00',NULL);
             """)
 
     def tearDown(self):
@@ -32,6 +33,10 @@ class PoolDatabaseTests(unittest.TestCase):
         pool = PoolDatabase(self.path)
         self.assertEqual(pool.blocks()[0]["height"], 900000)
         self.assertEqual(pool.workers()[0]["clientName"], "garage")
+
+    def test_active_workers_exclude_stale_sessions(self):
+        workers = PoolDatabase(self.path).workers(active_within_seconds=150)
+        self.assertEqual([worker["clientName"] for worker in workers], ["garage"])
 
 
 if __name__ == "__main__":

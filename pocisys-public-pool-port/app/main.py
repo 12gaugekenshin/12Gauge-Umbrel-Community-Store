@@ -43,6 +43,10 @@ class Monitor:
         )
         self.store = Store(str(data_dir / "pocisys-pool-port.sqlite"))
         self.interval = max(5, int(env("POLL_INTERVAL_SECONDS", "15")))
+        self.worker_stale_seconds = max(
+            self.interval * 2,
+            int(env("WORKER_STALE_SECONDS", "150")),
+        )
         self.state = {
             "updatedAt": None,
             "pool": {"online": False, "error": "Waiting for Public Pool"},
@@ -68,7 +72,7 @@ class Monitor:
         except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
             pool["error"] = str(exc)
         try:
-            workers = self.pool_db.workers()
+            workers = self.pool_db.workers(self.worker_stale_seconds)
         except Exception as exc:
             pool["databaseError"] = str(exc)
         try:
@@ -88,8 +92,11 @@ class Monitor:
         except RpcError as exc:
             node["error"] = str(exc)
 
-        total_hashrate = float(pool.get("totalHashRate") or sum(float(w.get("hashRate") or 0) for w in workers))
-        total_miners = int(pool.get("totalMiners") or len(workers))
+        # Public Pool caches /api/pool for five minutes. Its per-session rows
+        # are updated about once per minute, so they are the least stale source
+        # available for the dashboard's current share-derived estimate.
+        total_hashrate = sum(float(w.get("hashRate") or 0) for w in workers)
+        total_miners = len(workers)
         height = pool.get("blockHeight") or node.get("blocks")
         self.store.snapshot(total_hashrate, total_miners, height)
         self.verify_candidates()
@@ -98,6 +105,8 @@ class Monitor:
                 "updatedAt": int(time.time()), "pool": pool, "node": node,
                 "workers": workers, "totalHashRate": total_hashrate,
                 "totalMiners": total_miners, "blockHeight": height,
+                "hashrateSource": "active-worker-share-estimate",
+                "workerStaleSeconds": self.worker_stale_seconds,
             }
 
     def verify_candidates(self):

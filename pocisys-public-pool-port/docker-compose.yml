@@ -7,7 +7,7 @@ services:
       APP_PORT: 8080
 
   dashboard:
-    image: ghcr.io/12gaugekenshin/pocisys-public-pool-port:v0.1.3@sha256:8859b61c5479df12bb9fc196e525d203a65189db4b0288dcc99e977a537e4c95
+    image: ghcr.io/12gaugekenshin/pocisys-public-pool-port:v0.1.4@sha256:8842f8426fc01f2395b2bdaf483d13988e39b092c232ab932f08e2e96f180532
     restart: on-failure
     stop_grace_period: 20s
     depends_on:
@@ -32,6 +32,8 @@ services:
       STRATUM_PORT: 3334
       POOL_DISPLAY_NAME: PoCiSys Public Pool Port
       POLL_INTERVAL_SECONDS: 15
+      # Public Pool heartbeats active worker estimates about once per minute.
+      WORKER_STALE_SECONDS: 150
 
   server:
     image: ghcr.io/benjamin-wilson/public-pool:95565ee@sha256:3edffef3bbad23cbd46098904b22ba8a1c14c679ae90cf1e4d97ed98492bbab4

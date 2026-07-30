@@ -70,7 +70,7 @@ the full live integration exists only inside the Umbrel Compose stack.
 The manifest currently expects:
 
 ```text
-ghcr.io/12gaugekenshin/pocisys-public-pool-port:v0.1.3
+ghcr.io/12gaugekenshin/pocisys-public-pool-port:v0.1.4
 ```
 
 Publish both Umbrel CPU architectures before installation:
@@ -78,7 +78,7 @@ Publish both Umbrel CPU architectures before installation:
 ```bash
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  -t ghcr.io/12gaugekenshin/pocisys-public-pool-port:v0.1.3 \
+  -t ghcr.io/12gaugekenshin/pocisys-public-pool-port:v0.1.4 \
   --push .
 ```
 
@@ -94,7 +94,7 @@ that repository URL as an Umbrel community app store.
 The app declares `bitcoin` as a dependency. Umbrel will require the Bitcoin
 Node app and inject its private RPC credentials automatically.
 
-Version 0.1.3 deliberately uses host port `3334`, so it can be installed and
+Version 0.1.4 deliberately uses host port `3334`, so it can be installed and
 tested while the stock Public Pool continues serving your existing miners on
 `3333`. The two apps maintain separate worker ledgers. This app does not modify
 or delete Bitcoin Node data.
@@ -113,15 +113,21 @@ dashboard service. DNS and router port forwarding are infrastructure settings,
 not changed automatically by the app. Only forward TCP `3334`; never expose
 Bitcoin RPC, Public Pool API `2019`, or the Umbrel dashboard.
 
-## Preview status
+## Validation status
 
-The mocked end-to-end poll covers Public Pool API ingestion, TypeORM SQLite
-schema discovery, Bitcoin RPC, proof verification, worker ingestion, and
-100-confirmation maturity. A live Umbrel/Bitcoin Node installation has not yet
-been available for hardware validation, so `0.1.3` is intentionally a preview.
+Automated tests cover Public Pool API ingestion, TypeORM SQLite schema
+discovery, Bitcoin RPC, proof verification, fresh-worker filtering, worker
+ingestion, and 100-confirmation maturity. The pinned Public Pool engine has also
+been exercised end to end on isolated Bitcoin Core regtest with a physical ASIC:
+the miner crossed the network target, Public Pool submitted the reconstructed
+block successfully, Bitcoin Core advanced the chain, and the block record
+persisted. This validates the complete submission path without altering the
+production mainnet node.
 
 ## License and upstream
 
 PoCiSys Public Pool Port is intended for release under GPL-3.0-or-later.
 The bundled service uses Benjamin Wilson's GPL-3.0 Public Pool container:
 <https://github.com/benjamin-wilson/public-pool>.
+The exact upstream revision and license are recorded in
+[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
