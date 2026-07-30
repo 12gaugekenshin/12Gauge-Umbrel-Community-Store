@@ -3,27 +3,14 @@ id: pocisys-gpu-runtime
 category: ai
 name: PoCiSys GPU Runtime
 version: "0.1.5"
-tagline: Isolated Tesla P100 runtime for local PoCiSys AI
-icon: https://raw.githubusercontent.com/12gaugekenshin/PoCiSys-GPU-Runtime/main/pocisys-gpu-runtime/icon.svg
+tagline: Run private local AI on your Tesla P100
+icon: icon.svg
 description: >-
-  PoCiSys GPU Runtime is an isolated, experimental NVIDIA Tesla P100 inference
-  service for umbrelOS. It builds the proprietary NVIDIA kernel module against
-  the running umbrelOS kernel inside a privileged container, validates the GPU,
-  and then starts a private Ollama endpoint for Hermes and other local Umbrel
-  apps.
-
-
-  The runtime does not enable Rugix whole-root persistence, replace the
-  umbrelOS Docker runtime, or modify PoCiSys Hash Monitor. Driver artifacts,
-  logs, and AI models are kept on the existing hermes-agent-ssd Docker volume.
-  The currently installed CPU-only Ollama app remains untouched and available
-  as a fallback.
-
-
-  This first release is intentionally limited to x86-64 systems with an NVIDIA
-  Tesla P100 PCIe 16 GB (PCI ID 10de:15f8), matching kernel headers, and Secure
-  Boot disabled. The status page reports every bootstrap phase and leaves the
-  GPU safely unbound or returns it to nouveau if initialization fails.
+  A hardware-specific Tesla P100 inference service for umbrelOS. It prepares
+  the NVIDIA driver, validates the card, starts a private Ollama endpoint, and
+  reports GPU health from one dashboard. Models and logs stay on the existing
+  hermes-agent-ssd volume. Requires an x86-64 server, Tesla P100 PCIe 16 GB,
+  matching kernel headers, forced-air cooling, and Secure Boot disabled.
 developer: PoCiSys
 website: https://pocisys.io/
 submitter: 12gaugekenshin

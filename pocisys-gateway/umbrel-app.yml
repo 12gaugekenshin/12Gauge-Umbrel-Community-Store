@@ -3,21 +3,14 @@ id: pocisys-gateway
 category: ai
 name: PoCiSys Gateway
 version: "0.1.5"
-tagline: Privacy-preserving measurement gateway for local AI
-icon: https://raw.githubusercontent.com/12gaugekenshin/PoCiSys-Gateway/main/pocisys-gateway/icon.svg
+tagline: Private AI measurements without storing conversations
+icon: icon.svg
 description: >-
-  PoCiSys Gateway is a private companion for local AI services on umbrelOS. It
-  forwards approved Ollama and OpenAI-compatible traffic, measures timing,
-  provider-reported token usage, model identity, failures, and body hashes,
-  then returns the response unchanged. Prompt and response text are never
-  retained by the Gateway.
-
-
-  This release is preconfigured for PoCiSys GPU Runtime on Umbrel's private app
-  network. The backend address cannot be redirected from the dashboard. Recent
-  receipts and learned performance baselines are bounded in memory and vanish
-  when the Gateway restarts. They are useful audit signals, not proof that a
-  model's answer was correct or that inference ran on particular hardware.
+  A private measurement layer for PoCiSys GPU Runtime. Gateway forwards local
+  AI responses unchanged while recording timing, model identity, token counts,
+  failures, and body hashes. Prompt and response text are not retained. Use its
+  dashboard to inspect recent requests, performance baselines, and clear
+  attention reasons without exposing Ollama outside Umbrel.
 developer: PoCiSys
 website: https://pocisys.io/
 submitter: 12gaugekenshin

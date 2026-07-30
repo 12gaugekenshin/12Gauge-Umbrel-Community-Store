@@ -1,31 +1,33 @@
 # 12Gauge's PoCiSys Store
 
-One Umbrel community-store source for the apps maintained by
-[`12gaugekenshin`](https://github.com/12gaugekenshin).
+One Umbrel community store for the PoCiSys local-AI and mining toolkit.
 
-## Add to Umbrel
+## Add the store to Umbrel
 
-Open the Umbrel App Store, choose **Community App Stores**, and add:
+1. Open **App Store** in Umbrel.
+2. Open **Community App Stores**.
+3. Add this URL:
 
-```text
-https://github.com/12gaugekenshin/12Gauge-Umbrel-Community-Store
-```
+   ```text
+   https://github.com/12gaugekenshin/12Gauge-Umbrel-Community-Store
+   ```
 
-## Included apps
+4. Open **12Gauge's PoCiSys Store** and install the apps you want.
 
-| App | App ID | Source repository |
+## Apps
+
+| App | What it does | Main requirement |
 | --- | --- | --- |
-| PoCiSys Gateway | `pocisys-gateway` | [PoCisys-Gateway](https://github.com/12gaugekenshin/PoCisys-Gateway) |
-| PoCiSys GPU Runtime | `pocisys-gpu-runtime` | [PoCiSys-GPU-Runtime](https://github.com/12gaugekenshin/PoCiSys-GPU-Runtime) |
-| PoCiSys Hash Monitor | `pocisys-hash-monitor` | [PoCi-Hash-Monitor](https://github.com/12gaugekenshin/PoCi-Hash-Monitor) |
-| PoCiSys Public Pool Port | `pocisys-public-pool-port` | [Pocisys-public-pool-port](https://github.com/12gaugekenshin/Pocisys-public-pool-port) |
+| [PoCiSys Hash Monitor](pocisys-hash-monitor/README.md) | Monitors miners, pools, temperatures, shares, and alerts | Network access to your miners |
+| [PoCiSys Public Pool Port](pocisys-public-pool-port/README.md) | Runs a verified solo-mining pool through your own node | A synchronized Umbrel Bitcoin Node |
+| [PoCiSys GPU Runtime](pocisys-gpu-runtime/README.md) | Runs private Ollama inference on a Tesla P100 | Supported P100 server hardware |
+| [PoCiSys Gateway](pocisys-gateway/README.md) | Measures local-AI requests without storing their text | PoCiSys GPU Runtime |
 
-The application source and container builds remain in their individual
-repositories. This repository contains only the Umbrel app packages needed for
-discovery, installation, and updates through one store URL.
+Each app has its own short setup guide. Apps keep the same IDs across updates,
+so normal Umbrel updates preserve their configured data.
 
-## Maintenance
+## Support and source
 
-When an app releases a new version, copy its matching Umbrel package directory
-into this repository and commit the change. Existing Umbrel installations keep
-their data because the app IDs do not change.
+- Project: [pocisys.io](https://pocisys.io/)
+- Maintainer: [12gaugekenshin](https://github.com/12gaugekenshin)
+- Problems or feature requests: use the **Support** link on the app's Umbrel page.

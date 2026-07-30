@@ -1,37 +1,17 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="PoCiSys Hash Monitor ASCII cat icon">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="PoCiSys Hash Monitor">
   <defs>
-    <radialGradient id="bg" cx="72%" cy="16%" r="88%">
-      <stop offset="0" stop-color="#173944"/>
-      <stop offset="0.58" stop-color="#07101a"/>
-      <stop offset="1" stop-color="#04070c"/>
-    </radialGradient>
-    <linearGradient id="scan" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#4ed7c8" stop-opacity="0.22"/>
-      <stop offset="1" stop-color="#65a9ff" stop-opacity="0.08"/>
-    </linearGradient>
-    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="0" stdDeviation="8" flood-color="#4ed7c8" flood-opacity="0.45"/>
-      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#00070b" flood-opacity="0.55"/>
-    </filter>
+    <linearGradient id="bg" x1="58" y1="44" x2="454" y2="468" gradientUnits="userSpaceOnUse"><stop stop-color="#102c32"/><stop offset="1" stop-color="#0a1020"/></linearGradient>
+    <linearGradient id="a" x1="118" y1="122" x2="398" y2="388" gradientUnits="userSpaceOnUse"><stop stop-color="#65f2d3"/><stop offset="1" stop-color="#62a8ff"/></linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="12" stdDeviation="18" flood-color="#02060b" flood-opacity=".6"/></filter>
   </defs>
-
-  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
-  <path d="M78 104h356M78 176h356M78 248h356M78 320h356M78 392h356M104 78v356M176 78v356M248 78v356M320 78v356M392 78v356"
-        stroke="url(#scan)" stroke-width="2" opacity="0.35"/>
-  <circle cx="392" cy="100" r="94" fill="#4ed7c8" opacity="0.10"/>
-  <circle cx="114" cy="406" r="126" fill="#65a9ff" opacity="0.07"/>
-
-  <rect x="82" y="78" width="348" height="356" rx="44" fill="#07111c" stroke="#2b455c" stroke-width="4" opacity="0.92"/>
-  <rect x="82" y="78" width="348" height="56" rx="44" fill="#101b28"/>
-  <circle cx="124" cy="106" r="7" fill="#ff6b78"/>
-  <circle cx="149" cy="106" r="7" fill="#ffc961"/>
-  <circle cx="174" cy="106" r="7" fill="#6ee7a3"/>
-
-  <g filter="url(#glow)" font-family="Cascadia Code, Consolas, Monaco, monospace" text-anchor="middle">
-    <text x="256" y="192" font-size="42" font-weight="800" fill="#4ed7c8">/\_/\</text>
-    <text x="256" y="245" font-size="42" font-weight="800" fill="#dce7f4">( o.o )</text>
-    <text x="256" y="300" font-size="42" font-weight="800" fill="#4ed7c8">&gt; ^ &lt;</text>
-    <text x="256" y="358" font-size="39" font-weight="900" letter-spacing="4" fill="#dce7f4">PoCi</text>
-    <text x="256" y="392" font-size="18" font-weight="800" letter-spacing="5" fill="#7d91a8">HASH MONITOR</text>
+  <rect width="512" height="512" rx="116" fill="#060a11"/>
+  <rect x="28" y="28" width="456" height="456" rx="94" fill="url(#bg)" stroke="#65f2d3" stroke-opacity=".18" stroke-width="4"/>
+  <path d="M92 170h328M92 256h328M92 342h328M170 92v328M256 92v328M342 92v328" stroke="#70d8dc" stroke-opacity=".055" stroke-width="3"/>
+  <g filter="url(#glow)">
+    <rect x="104" y="112" width="304" height="288" rx="48" fill="#07121c" stroke="#284252" stroke-width="8"/>
+    <path d="M136 306h51l29-70 43 113 42-166 35 123h40" fill="none" stroke="url(#a)" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="136" cy="306" r="10" fill="#65f2d3"/><circle cx="376" cy="306" r="10" fill="#62a8ff"/>
+    <path d="M153 163h78M281 163h78" stroke="#dffefa" stroke-width="12" stroke-linecap="round" opacity=".82"/>
   </g>
+  <circle cx="384" cy="128" r="19" fill="#75f0a6"/><circle cx="384" cy="128" r="31" fill="none" stroke="#75f0a6" stroke-opacity=".23" stroke-width="8"/>
 </svg>

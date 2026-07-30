@@ -1,6 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
-  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#53d8e5"/><stop offset="1" stop-color="#45f0a8"/></linearGradient></defs>
-  <rect width="256" height="256" rx="52" fill="#101619"/>
-  <path d="M56 58h78c44 0 70 22 70 58 0 38-27 61-72 61H98v31H56V58zm42 36v47h32c20 0 31-8 31-24 0-15-11-23-31-23H98z" fill="url(#g)"/>
-  <circle cx="192" cy="190" r="18" fill="#53d8e5"/><path d="M184 190l6 6 11-14" fill="none" stroke="#101619" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="PoCiSys Gateway">
+  <defs>
+    <linearGradient id="bg" x1="58" y1="44" x2="454" y2="468" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#102c32"/><stop offset="1" stop-color="#0a1020"/>
+    </linearGradient>
+    <linearGradient id="a" x1="136" y1="126" x2="388" y2="382" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#65f2d3"/><stop offset="1" stop-color="#62a8ff"/>
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="12" stdDeviation="18" flood-color="#02060b" flood-opacity=".6"/></filter>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="#060a11"/>
+  <rect x="28" y="28" width="456" height="456" rx="94" fill="url(#bg)" stroke="#65f2d3" stroke-opacity=".18" stroke-width="4"/>
+  <path d="M92 170h328M92 256h328M92 342h328M170 92v328M256 92v328M342 92v328" stroke="#70d8dc" stroke-opacity=".055" stroke-width="3"/>
+  <g filter="url(#glow)" fill="none" stroke="url(#a)" stroke-width="18" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M190 358h-34c-25 0-46-21-46-46V200c0-25 21-46 46-46h34"/>
+    <path d="M322 154h34c25 0 46 21 46 46v112c0 25-21 46-46 46h-34"/>
+    <path d="M169 224h174l-35-35M343 288H169l35 35"/>
+  </g>
+  <circle cx="256" cy="256" r="30" fill="#07131b" stroke="#d9fff7" stroke-width="10"/>
+  <circle cx="256" cy="256" r="8" fill="#65f2d3"/>
 </svg>
