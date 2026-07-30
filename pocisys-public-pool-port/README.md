@@ -9,7 +9,8 @@ engine and adds PoCiSys operations, history, and block assurance.
   port, username, and password.
 - Upstream Public Pool server pinned to the same image digest used by the
   current Umbrel App Store package.
-- Stratum V1 on TCP port `3333`.
+- Stratum V1 on TCP port `3334` for safe side-by-side testing with Umbrel's
+  stock Public Pool on `3333`.
 - A private Public Pool API; it is not published on a host port.
 - A read-only mount of Public Pool's SQLite ledger into the PoCiSys verifier.
 - Persistent PoCiSys history in a separate SQLite/WAL database.
@@ -69,7 +70,7 @@ the full live integration exists only inside the Umbrel Compose stack.
 The manifest currently expects:
 
 ```text
-ghcr.io/12gaugekenshin/pocisys-public-pool-port:v0.1.0
+ghcr.io/12gaugekenshin/pocisys-public-pool-port:v0.1.1
 ```
 
 Publish both Umbrel CPU architectures before installation:
@@ -77,7 +78,7 @@ Publish both Umbrel CPU architectures before installation:
 ```bash
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  -t ghcr.io/12gaugekenshin/pocisys-public-pool-port:v0.1.0 \
+  -t ghcr.io/12gaugekenshin/pocisys-public-pool-port:v0.1.1 \
   --push .
 ```
 
@@ -93,22 +94,23 @@ that repository URL as an Umbrel community app store.
 The app declares `bitcoin` as a dependency. Umbrel will require the Bitcoin
 Node app and inject its private RPC credentials automatically.
 
-Do not run the stock Public Pool app at the same time: both default to a host
-Stratum port and maintain separate worker ledgers. This app does not modify or
-delete Bitcoin Node data.
+Version 0.1.1 deliberately uses host port `3334`, so it can be installed and
+tested while the stock Public Pool continues serving your existing miners on
+`3333`. The two apps maintain separate worker ledgers. This app does not modify
+or delete Bitcoin Node data.
 
 ## Miner settings
 
 ```text
 Host:     umbrel.local
-Port:     3333
+Port:     3334
 Username: <bitcoin payout address>.<worker name>
 Password: x
 ```
 
 To show a public DNS name in the dashboard, set `PUBLIC_STRATUM_HOST` on the
 dashboard service. DNS and router port forwarding are infrastructure settings,
-not changed automatically by the app. Only forward TCP `3333`; never expose
+not changed automatically by the app. Only forward TCP `3334`; never expose
 Bitcoin RPC, Public Pool API `2019`, or the Umbrel dashboard.
 
 ## Preview status
@@ -116,7 +118,7 @@ Bitcoin RPC, Public Pool API `2019`, or the Umbrel dashboard.
 The mocked end-to-end poll covers Public Pool API ingestion, TypeORM SQLite
 schema discovery, Bitcoin RPC, proof verification, worker ingestion, and
 100-confirmation maturity. A live Umbrel/Bitcoin Node installation has not yet
-been available for hardware validation, so `0.1.0` is intentionally a preview.
+been available for hardware validation, so `0.1.1` is intentionally a preview.
 
 ## License and upstream
 
