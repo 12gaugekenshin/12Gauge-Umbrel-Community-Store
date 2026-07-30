@@ -1,0 +1,54 @@
+manifestVersion: 1
+id: pocisys-public-pool-port
+category: bitcoin
+name: PoCiSys Public Pool Port
+version: "0.1.0"
+tagline: Your node, your pool, verified all the way to maturity
+icon: icon.svg
+description: >-
+  PoCiSys Public Pool Port combines the open-source Public Pool solo-mining
+  engine with a deeper PoCiSys dashboard built for umbrelOS. It connects
+  automatically to the Bitcoin Node app, serves Stratum V1 on port 3333,
+  records worker and hashrate history, and independently verifies every
+  network-target candidate against Bitcoin Core. Candidate proof, active-chain
+  status, confirmations, reorgs, and 100-block coinbase maturity are shown as
+  separate states so a difficult share is never mislabeled as a confirmed block.
+
+
+  Miner payout addresses remain in the standard address.worker username. Pool
+  and analytics data persist across app updates. Bitcoin RPC and the upstream
+  pool API remain private inside the Umbrel application network.
+developer: PoCiSys
+website: https://github.com/12gaugekenshin/PoCiSys-Public-Pool-Port
+repo: https://github.com/12gaugekenshin/PoCiSys-Public-Pool-Port
+support: https://github.com/12gaugekenshin/PoCiSys-Public-Pool-Port/issues
+submitter: 12gaugekenshin
+submission: https://github.com/12gaugekenshin/PoCiSys-Public-Pool-Port
+dependencies:
+  - bitcoin
+port: 8585
+gallery: []
+path: ""
+defaultUsername: ""
+defaultPassword: ""
+releaseNotes: >-
+  Initial preview with automatic Bitcoin Node integration, Public Pool Stratum
+  engine, worker telemetry, historical hashrate, and confirmation-aware block
+  verification through coinbase maturity.
+widgets:
+  - id: pool-stats
+    type: four-stats
+    refresh: 10s
+    endpoint: dashboard:8080/api/widget
+    link: ""
+    example:
+      type: four-stats
+      items:
+        - title: Hash Rate
+          text: 2.40 TH/s
+        - title: Workers
+          text: "3"
+        - title: Blocks
+          text: "0"
+        - title: Height
+          text: "900000"

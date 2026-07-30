@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#080c12">
+  <title>PoCiSys Public Pool Port</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#overview"><span class="brand-mark">P</span><span><strong>PoCiSys</strong><small>Public Pool Port</small></span></a>
+    <nav>
+      <a href="#overview" class="active">Overview</a><a href="#workers">Workers</a>
+      <a href="#blocks">Blocks</a><a href="#connect">Connect</a>
+    </nav>
+    <div id="health" class="health"><i></i><span>Connecting</span></div>
+  </header>
+  <main>
+    <section id="overview" class="page active">
+      <div class="hero">
+        <div><p class="eyebrow">Sovereign solo mining</p><h1>Your node. Your templates.<br><em>Your block.</em></h1><p>Public Pool’s proven Stratum engine, ported into a deeper PoCiSys control surface.</p></div>
+        <div class="orbit"><span class="core">₿</span><i></i><i></i><i></i></div>
+      </div>
+      <div id="metrics" class="metrics"></div>
+      <div class="split">
+        <section class="panel chart-panel"><header><div><p class="eyebrow">Last 24 hours</p><h2>Pool hashrate</h2></div><span id="chart-range" class="pill">Live</span></header><canvas id="hash-chart" height="210"></canvas></section>
+        <section class="panel"><header><div><p class="eyebrow">Verification ledger</p><h2>Block assurance</h2></div><span class="shield">✓</span></header><div class="assurance"><div><b>1</b><span>Candidate proof</span></div><div><b>2</b><span>Node acceptance</span></div><div><b>3</b><span>Active chain</span></div><div><b>4</b><span>100-block maturity</span></div></div><p class="muted">A high-difficulty share is never presented as a confirmed block.</p></section>
+      </div>
+      <section class="panel activity"><header><div><p class="eyebrow">System journal</p><h2>Recent activity</h2></div></header><div id="events"></div></section>
+    </section>
+
+    <section id="workers" class="page">
+      <div class="page-heading"><div><p class="eyebrow">Live Stratum sessions</p><h1>Workers</h1><p>Every connected address, worker, session, and personal best.</p></div></div>
+      <div id="workers-list" class="worker-grid"></div>
+    </section>
+
+    <section id="blocks" class="page">
+      <div class="page-heading"><div><p class="eyebrow">Audit-grade confirmation</p><h1>Blocks</h1><p>Candidates are independently proof-checked and followed through coinbase maturity.</p></div></div>
+      <div class="verification-key"><span><i class="candidate"></i>Candidate</span><span><i class="confirming"></i>Confirming</span><span><i class="confirmed"></i>Confirmed</span><span><i class="mature"></i>Mature</span><span><i class="orphaned"></i>Orphaned</span></div>
+      <div id="blocks-list" class="blocks-list"></div>
+    </section>
+
+    <section id="connect" class="page">
+      <div class="page-heading"><div><p class="eyebrow">Miner configuration</p><h1>Connect to the port</h1><p>Use your Bitcoin payout address and a memorable worker name.</p></div></div>
+      <div class="connect-grid">
+        <section class="panel endpoint-card"><span class="number">01</span><p class="eyebrow">Inside your network</p><h2>Local Stratum</h2><div class="code-row"><code id="local-endpoint">umbrel.local:3333</code><button data-copy="local-endpoint">Copy</button></div><p class="muted">For miners connected to the same local network as your Umbrel.</p></section>
+        <section class="panel endpoint-card"><span class="number">02</span><p class="eyebrow">Optional public route</p><h2>Public Stratum</h2><div class="code-row"><code id="public-endpoint">Not configured</code><button data-copy="public-endpoint">Copy</button></div><p class="muted">Set PUBLIC_STRATUM_HOST in the app package after DNS and port forwarding are ready.</p></section>
+      </div>
+      <section class="panel recipe"><header><div><p class="eyebrow">Standard Stratum V1</p><h2>Miner fields</h2></div></header><dl><div><dt>Host</dt><dd id="recipe-host">umbrel.local</dd></div><div><dt>Port</dt><dd id="recipe-port">3333</dd></div><div><dt>Username</dt><dd>bc1q…your-address.worker-name</dd></div><div><dt>Password</dt><dd>x</dd></div></dl><div class="notice"><b>Direct payout</b><span>The address in the username receives the coinbase reward when that worker finds a valid block.</span></div></section>
+    </section>
+  </main>
+  <div id="toast">Copied</div>
+  <script src="/app.js"></script>
+</body>
+</html>

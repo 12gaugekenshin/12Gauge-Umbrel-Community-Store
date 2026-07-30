@@ -1,0 +1,50 @@
+{
+  "app": {
+    "poll_interval_seconds": 10,
+    "dashboard_port": 8765,
+    "alert_cooldown_seconds": 600,
+    "offline_alert_grace_seconds": 60,
+    "request_timeout_seconds": 4,
+    "dashboard_density": "comfortable",
+    "difficulty_rain_enabled": true,
+    "dashboard_base_url": "",
+    "lan_access_enabled": false
+  },
+  "miners": [],
+  "pools": [],
+  "discord": {
+    "enabled": false,
+    "webhook_url": "",
+    "send_offline_alerts": true,
+    "send_recovery_alerts": true,
+    "send_hashrate_alerts": true,
+    "send_temperature_alerts": true,
+    "send_chip_health_alerts": true,
+    "send_best_diff_alerts": true,
+    "send_block_found_alerts": true,
+    "send_pool_alerts": true,
+    "send_pool_switch_alerts": true,
+    "send_share_alerts": true,
+    "verbose_pool_events": false
+  },
+  "hermes": {
+    "enabled": false,
+    "token_hash": "",
+    "token_hint": ""
+  },
+  "odds": {
+    "btc_enabled": true,
+    "bch_enabled": true,
+    "bsv_enabled": true,
+    "xec_enabled": true,
+    "dgb_enabled": true,
+    "chta_enabled": true,
+    "auto_network_data": true,
+    "manual_btc_network_hashrate_eh": null,
+    "manual_bch_network_hashrate_eh": null,
+    "manual_bsv_network_hashrate_eh": null,
+    "manual_xec_network_hashrate_eh": null,
+    "manual_dgb_network_hashrate_eh": null,
+    "manual_chta_network_hashrate_eh": null
+  }
+}

@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <title>PoCiSys GPU Runtime</title>
+    <link rel="stylesheet" href="/style.css">
+  </head>
+  <body>
+    <main>
+      <header>
+        <div class="mark" aria-hidden="true">P</div>
+        <div>
+          <p class="eyebrow">POCISYS LOCAL AI</p>
+          <h1>GPU Runtime</h1>
+          <p id="summary">Reading runtime status…</p>
+        </div>
+        <span id="state" class="pill starting">STARTING</span>
+      </header>
+
+      <section class="notice">
+        <strong>Isolated runtime:</strong>
+        this app does not replace the existing CPU Ollama app or enable
+        whole-root persistence in umbrelOS.
+      </section>
+
+      <section class="grid">
+        <article>
+          <h2>GPU</h2>
+          <dl>
+            <div><dt>Device</dt><dd id="gpu-name">—</dd></div>
+            <div><dt>Temperature</dt><dd id="gpu-temp">—</dd></div>
+            <div><dt>VRAM</dt><dd id="gpu-memory">—</dd></div>
+            <div><dt>Utilization</dt><dd id="gpu-util">—</dd></div>
+            <div><dt>Power</dt><dd id="gpu-power">—</dd></div>
+            <div><dt>Driver</dt><dd id="gpu-driver">—</dd></div>
+          </dl>
+        </article>
+
+        <article>
+          <h2>Runtime</h2>
+          <dl>
+            <div><dt>Kernel</dt><dd id="kernel">—</dd></div>
+            <div><dt>Secure Boot</dt><dd id="secure-boot">—</dd></div>
+            <div><dt>PCI address</dt><dd id="gpu-bdf">—</dd></div>
+            <div><dt>Ollama</dt><dd id="ollama">—</dd></div>
+            <div><dt>Models</dt><dd id="models">—</dd></div>
+            <div><dt>Storage</dt><dd id="storage">—</dd></div>
+          </dl>
+        </article>
+      </section>
+
+      <section class="endpoint">
+        <h2>Hermes endpoint</h2>
+        <code id="endpoint">http://pocisys-gpu-runtime_runtime_1:11434</code>
+        <p>
+          This address is private to Umbrel’s app network. Keep Hermes on the
+          current Codex provider until this page reports <strong>READY</strong>
+          and a model has been installed.
+        </p>
+      </section>
+
+      <section class="safe-test">
+        <div>
+          <h2>Controlled model test</h2>
+          <p>
+            Runs one fixed prompt with thinking disabled, a 64-token ceiling,
+            2K context, and a 45-second request timeout.
+          </p>
+        </div>
+        <button id="safe-test-button" type="button">Run Safe Test</button>
+        <pre id="safe-test-result" hidden></pre>
+      </section>
+
+      <footer>
+        <span>PoCiSys GPU Runtime <span id="version"></span></span>
+        <span id="updated">Waiting for first update</span>
+      </footer>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>

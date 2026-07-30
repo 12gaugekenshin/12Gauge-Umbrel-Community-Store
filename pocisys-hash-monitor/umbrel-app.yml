@@ -1,0 +1,43 @@
+manifestVersion: 1
+id: pocisys-hash-monitor
+category: bitcoin
+name: PoCiSys Hash Monitor
+version: "1.5.1"
+tagline: Read-only monitoring for your SHA-256 miner fleet
+icon: https://raw.githubusercontent.com/12gaugekenshin/PoCi-Hash-Monitor/main/pocisys-hash-monitor/icon.svg
+description: >-
+  PoCiSys Hash Monitor is a lightweight, read-only dashboard built by
+  12GaugeKenshin for monitoring multiple AxeOS, NerdAxe/NerdQaxe, and LuxOS
+  miners from one place.
+
+
+  View live hashrate, temperatures, cooling, share quality, compact best
+  difficulty, chip and hashboard health, self-hosted Public Pool workers, and automatic
+  BTC/BCH/BSV/XEC/DGB/CHTA network data. Configure dashboard-wide Discord alerts for miner
+  outages, recoveries, low hashrate, temperature, pool switches, bad shares,
+  best difficulty, and block events.
+
+
+  PoCiSys never changes miner settings. It stores only its small config.json
+  file and keeps current telemetry in bounded memory with no database or
+  long-term hashrate history. Its optional authenticated Hermes MCP endpoint
+  exposes only read-only host, miner, pool, and block-odds telemetry.
+developer: PoCiSys
+website: https://pocisys.io/
+submitter: 12gaugekenshin
+submission: https://github.com/12gaugekenshin/PoCi-Hash-Monitor
+repo: https://github.com/12gaugekenshin/PoCi-Hash-Monitor
+support: https://github.com/12gaugekenshin/PoCi-Hash-Monitor/issues
+port: 8765
+gallery:
+  - https://raw.githubusercontent.com/12gaugekenshin/PoCi-Hash-Monitor/HEAD/pocisys-hash-monitor/1.png
+  - https://raw.githubusercontent.com/12gaugekenshin/PoCi-Hash-Monitor/HEAD/pocisys-hash-monitor/2.png
+releaseNotes: >-
+  Fixes intermittent 502 errors on Umbrel systems that also run Public Pool by
+  routing the app proxy through PoCiSys's unique Docker network alias. Includes
+  authenticated, read-only Hermes MCP access for miner, pool, odds, and
+  container-visible system telemetry.
+dependencies: []
+path: ""
+defaultUsername: ""
+defaultPassword: ""

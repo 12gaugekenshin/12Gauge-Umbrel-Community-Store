@@ -1,0 +1,57 @@
+version: "3.7"
+
+services:
+  app_proxy:
+    environment:
+      APP_HOST: pocisys-public-pool-port_dashboard_1
+      APP_PORT: 8080
+
+  dashboard:
+    image: ghcr.io/12gaugekenshin/pocisys-public-pool-port:v0.1.0
+    restart: on-failure
+    stop_grace_period: 20s
+    user: "1000:1000"
+    depends_on:
+      - server
+    volumes:
+      - ${APP_DATA_DIR}/data/dashboard:/data
+      - ${APP_DATA_DIR}/data/public-pool:/pool-db:ro
+    environment:
+      PORT: 8080
+      DATA_DIR: /data
+      PUBLIC_POOL_DB: /pool-db/public-pool.sqlite
+      PUBLIC_POOL_API_URL: http://server:2019
+      BITCOIN_RPC_URL: http://${APP_BITCOIN_NODE_IP}
+      BITCOIN_RPC_PORT: ${APP_BITCOIN_RPC_PORT}
+      BITCOIN_RPC_USER: ${APP_BITCOIN_RPC_USER}
+      BITCOIN_RPC_PASSWORD: ${APP_BITCOIN_RPC_PASS}
+      BITCOIN_RPC_TIMEOUT_SECONDS: 10
+      DEVICE_DOMAIN_NAME: ${DEVICE_DOMAIN_NAME}
+      PUBLIC_STRATUM_HOST: ""
+      STRATUM_PORT: 3333
+      POOL_DISPLAY_NAME: PoCiSys Public Pool Port
+      POLL_INTERVAL_SECONDS: 15
+
+  server:
+    image: ghcr.io/benjamin-wilson/public-pool:95565ee@sha256:3edffef3bbad23cbd46098904b22ba8a1c14c679ae90cf1e4d97ed98492bbab4
+    restart: on-failure
+    stop_grace_period: 30s
+    ports:
+      - "3333:3333/tcp"
+    volumes:
+      - ${APP_DATA_DIR}/data/public-pool:/public-pool/DB
+    environment:
+      NODE_ENV: production
+      BITCOIN_RPC_URL: http://${APP_BITCOIN_NODE_IP}
+      BITCOIN_RPC_USER: ${APP_BITCOIN_RPC_USER}
+      BITCOIN_RPC_PASSWORD: ${APP_BITCOIN_RPC_PASS}
+      BITCOIN_RPC_PORT: ${APP_BITCOIN_RPC_PORT}
+      BITCOIN_RPC_TIMEOUT: 10000
+      API_PORT: 2019
+      STRATUM_PORT: 3333
+      STRATUM_MAX_CONNECTIONS_PER_LISTENER: 1000
+      NETWORK: mainnet
+      API_SECURE: "false"
+      ENABLE_SOLO: "true"
+      ENABLE_PROXY: "false"
+      POOL_IDENTIFIER: PoCiSys Public Pool Port

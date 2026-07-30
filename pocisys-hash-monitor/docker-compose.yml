@@ -1,0 +1,127 @@
+version: "3.7"
+
+services:
+  app_proxy:
+    environment:
+      # umbrel_main_network is shared by installed apps. A generic "server"
+      # hostname also resolves to Public Pool's backend, causing requests to
+      # randomly hit the wrong container. Target PoCiSys's unique alias.
+      APP_HOST: pocisys-hash-monitor_server_1
+      APP_PORT: 8765
+      PROXY_AUTH_ADD: "false"
+
+  server:
+    image: python:3.12-alpine
+    restart: on-failure
+    init: true
+    stop_grace_period: 15s
+    environment:
+      POCISYS_CONFIG_PATH: /data/config.json
+      POCISYS_HOST: 0.0.0.0
+      POCISYS_PORT: "8765"
+      POCISYS_SOURCE_ZIP: https://codeload.github.com/12gaugekenshin/PoCi-Hash-Monitor/zip/refs/heads/main
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+    volumes:
+      - ${APP_DATA_DIR}/data:/data
+    command:
+      - python
+      - -u
+      - -c
+      - |
+        import os
+        import shutil
+        import signal
+        import subprocess
+        import sys
+        import time
+        import urllib.request
+        import zipfile
+        from pathlib import Path
+
+        url = os.environ["POCISYS_SOURCE_ZIP"]
+        root = Path("/tmp/pocisys-src")
+        archive = Path("/tmp/pocisys-source.zip")
+        shutil.rmtree(root, ignore_errors=True)
+        root.mkdir(parents=True, exist_ok=True)
+        print(f"PoCiSys bootstrap: downloading app source from {url}", flush=True)
+        urllib.request.urlretrieve(url, archive)
+        with zipfile.ZipFile(archive) as zip_file:
+            zip_file.extractall(root)
+        matches = list(root.glob("*/pocisys-hash-monitor/main.py"))
+        if not matches:
+            raise SystemExit("PoCiSys bootstrap: downloaded source is missing pocisys-hash-monitor/main.py")
+        data_dir = Path("/data")
+        data_dir.mkdir(parents=True, exist_ok=True)
+        write_test = data_dir / ".pocisys-write-test"
+        write_test.write_text("ok\n", encoding="utf-8")
+        write_test.unlink(missing_ok=True)
+        print("PoCiSys bootstrap: /data write test passed", flush=True)
+        main_py = matches[0]
+        os.chdir(main_py.parent)
+        os.environ["PYTHONPATH"] = str(main_py.parent)
+        port = int(os.environ.get("POCISYS_PORT", "8765"))
+        health_url = f"http://127.0.0.1:{port}/health"
+        state = {"stop": False, "child": None}
+
+        def stop_child(signum, frame):
+            state["stop"] = True
+            child = state.get("child")
+            if child and child.poll() is None:
+                print("PoCiSys supervisor: stopping app process", flush=True)
+                child.terminate()
+
+        signal.signal(signal.SIGTERM, stop_child)
+        signal.signal(signal.SIGINT, stop_child)
+
+        while not state["stop"]:
+            print("PoCiSys supervisor: starting app process", flush=True)
+            child = subprocess.Popen([sys.executable, "-u", str(main_py)], cwd=str(main_py.parent), env=os.environ.copy())
+            state["child"] = child
+            saw_healthy = False
+            failures = 0
+            started_at = time.monotonic()
+            code = None
+            while not state["stop"]:
+                code = child.poll()
+                if code is not None:
+                    break
+                try:
+                    with urllib.request.urlopen(health_url, timeout=1.0) as response:
+                        response.read(128)
+                    if not saw_healthy:
+                        print("PoCiSys supervisor: app health check passed", flush=True)
+                    saw_healthy = True
+                    failures = 0
+                except Exception as exc:
+                    failures += 1
+                    if saw_healthy and failures >= 3:
+                        print(f"PoCiSys supervisor: health check failed repeatedly ({exc}); restarting app", flush=True)
+                        child.terminate()
+                        try:
+                            code = child.wait(timeout=5)
+                        except subprocess.TimeoutExpired:
+                            child.kill()
+                            code = child.wait()
+                        break
+                    if not saw_healthy and time.monotonic() - started_at > 45:
+                        print(f"PoCiSys supervisor: app did not become healthy ({exc}); restarting app", flush=True)
+                        child.terminate()
+                        try:
+                            code = child.wait(timeout=5)
+                        except subprocess.TimeoutExpired:
+                            child.kill()
+                            code = child.wait()
+                        break
+                time.sleep(2)
+            if state["stop"]:
+                raise SystemExit(0)
+            if code is None:
+                code = child.wait()
+            print(f"PoCiSys supervisor: app process exited with code {code}; restarting shortly", flush=True)
+            time.sleep(0.25)
+    networks:
+      default:
+        aliases:
+          - pocisys-hash-monitor_server_1
+          - pocisys-hash-monitor-server-1

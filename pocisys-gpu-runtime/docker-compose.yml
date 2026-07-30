@@ -1,0 +1,105 @@
+version: "3.7"
+
+services:
+  app_proxy:
+    environment:
+      APP_HOST: pocisys-gpu-runtime_runtime_1
+      APP_PORT: 8780
+
+  runtime:
+    image: python:3.12-slim-trixie
+    restart: on-failure
+    init: true
+    privileged: true
+    stop_grace_period: 45s
+    environment:
+      POCISYS_SOURCE_ZIP: https://codeload.github.com/12gaugekenshin/PoCiSys-GPU-Runtime/zip/refs/tags/v0.1.5
+      POCISYS_EXPECTED_PCI_ID: "10de:15f8"
+      POCISYS_NVIDIA_DRIVER_VERSION: "570.144"
+      POCISYS_NVIDIA_DRIVER_SHA256: "f3532d135c934c1a25480275da3cf8edb32aa6c5fccef64f657463c26e26fb70"
+      POCISYS_NVIDIA_DRIVER_URL: https://download.nvidia.com/XFree86/Linux-x86_64/570.144/NVIDIA-Linux-x86_64-570.144-no-compat32.run
+      POCISYS_OLLAMA_VERSION: "0.32.0"
+      POCISYS_OLLAMA_SHA256: "56362d7609dfa9e35aaebb7c9cab25605d8f0528ec3d5d585dc83d6642002bab"
+      POCISYS_OLLAMA_URL: https://github.com/ollama/ollama/releases/download/v0.32.0/ollama-linux-amd64.tar.zst
+      POCISYS_STATUS_PORT: "8780"
+      POCISYS_DATA_ROOT: /agent-storage/pocisys-gpu-runtime
+      POCISYS_GPU_MAX_TEMP_C: "82"
+      POCISYS_TEST_MODEL: "qwen3.5:9b-64k"
+      OLLAMA_HOST: 0.0.0.0:11434
+      OLLAMA_MODELS: /agent-storage/pocisys-gpu-runtime/models
+      OLLAMA_CONTEXT_LENGTH: "8192"
+      OLLAMA_KEEP_ALIVE: "-1"
+      OLLAMA_ORIGINS: "*"
+      OLLAMA_FLASH_ATTENTION: "0"
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+    volumes:
+      - ${APP_DATA_DIR}/data:/data
+      - hermes_agent_ssd:/agent-storage
+      - /usr/src:/usr/src:ro
+      - /usr/lib/linux-kbuild-6.12.85+deb13:/usr/lib/linux-kbuild-6.12.85+deb13:ro
+      - /usr/src:/host/usr/src:ro
+      - /lib/modules:/host/lib/modules:ro
+      - /sys:/sys:rw
+    command:
+      - /bin/bash
+      - -lc
+      - |
+        set -e
+        export DEBIAN_FRONTEND=noninteractive
+        marker=/var/lib/pocisys-gpu-runtime-deps-v2
+        if [ ! -f "$$marker" ]; then
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            binutils build-essential ca-certificates curl dwarves kmod libelf-dev \
+            pciutils pkg-config unzip xz-utils zstd
+          rm -rf /var/lib/apt/lists/*
+          touch "$$marker"
+        fi
+
+        rm -rf /tmp/pocisys-gpu-source /tmp/pocisys-gpu-source.zip
+        mkdir -p /tmp/pocisys-gpu-source
+        python3 - <<'PY'
+        import os
+        import urllib.request
+        import zipfile
+
+        url = os.environ["POCISYS_SOURCE_ZIP"]
+        archive = "/tmp/pocisys-gpu-source.zip"
+        print(f"PoCiSys GPU bootstrap: downloading source from {url}", flush=True)
+        urllib.request.urlretrieve(url, archive)
+        with zipfile.ZipFile(archive) as package:
+            package.extractall("/tmp/pocisys-gpu-source")
+        PY
+
+        bootstrap="$$(
+          find /tmp/pocisys-gpu-source \
+            -path '*/pocisys-gpu-runtime/bootstrap.sh' \
+            -type f -print -quit
+        )"
+        if [ -z "$$bootstrap" ]; then
+          echo "PoCiSys GPU bootstrap: downloaded source is missing bootstrap.sh" >&2
+          exit 1
+        fi
+        chmod +x "$$bootstrap"
+        exec "$$bootstrap"
+    healthcheck:
+      test:
+        - CMD
+        - python3
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8780/health', timeout=3).read()"
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 30s
+    networks:
+      default:
+        aliases:
+          - pocisys-gpu-runtime_runtime_1
+          - pocisys-gpu-runtime-runtime-1
+
+volumes:
+  hermes_agent_ssd:
+    external: true
+    name: hermes-agent-ssd
