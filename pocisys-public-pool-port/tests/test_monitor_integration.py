@@ -28,6 +28,9 @@ class FakeServices(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self):
+        if self.path != "/api/pool":
+            self.send_error(404)
+            return
         self._send({"totalHashRate": 500000000000, "totalMiners": 1, "blockHeight": 900000, "blocksFound": []})
 
     def do_POST(self):

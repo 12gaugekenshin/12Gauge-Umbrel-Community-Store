@@ -70,7 +70,7 @@ the full live integration exists only inside the Umbrel Compose stack.
 The manifest currently expects:
 
 ```text
-ghcr.io/12gaugekenshin/pocisys-public-pool-port:v0.1.2
+ghcr.io/12gaugekenshin/pocisys-public-pool-port:v0.1.3
 ```
 
 Publish both Umbrel CPU architectures before installation:
@@ -78,7 +78,7 @@ Publish both Umbrel CPU architectures before installation:
 ```bash
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  -t ghcr.io/12gaugekenshin/pocisys-public-pool-port:v0.1.2 \
+  -t ghcr.io/12gaugekenshin/pocisys-public-pool-port:v0.1.3 \
   --push .
 ```
 
@@ -94,7 +94,7 @@ that repository URL as an Umbrel community app store.
 The app declares `bitcoin` as a dependency. Umbrel will require the Bitcoin
 Node app and inject its private RPC credentials automatically.
 
-Version 0.1.2 deliberately uses host port `3334`, so it can be installed and
+Version 0.1.3 deliberately uses host port `3334`, so it can be installed and
 tested while the stock Public Pool continues serving your existing miners on
 `3333`. The two apps maintain separate worker ledgers. This app does not modify
 or delete Bitcoin Node data.
@@ -118,7 +118,7 @@ Bitcoin RPC, Public Pool API `2019`, or the Umbrel dashboard.
 The mocked end-to-end poll covers Public Pool API ingestion, TypeORM SQLite
 schema discovery, Bitcoin RPC, proof verification, worker ingestion, and
 100-confirmation maturity. A live Umbrel/Bitcoin Node installation has not yet
-been available for hardware validation, so `0.1.2` is intentionally a preview.
+been available for hardware validation, so `0.1.3` is intentionally a preview.
 
 ## License and upstream
 

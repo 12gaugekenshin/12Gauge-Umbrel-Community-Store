@@ -62,7 +62,7 @@ class Monitor:
         node = {"online": False}
         workers = []
         try:
-            pool.update(self.http_json("/pool"))
+            pool.update(self.http_json("/api/pool"))
             pool["online"] = True
             pool["error"] = None
         except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:

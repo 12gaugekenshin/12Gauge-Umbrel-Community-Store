@@ -7,7 +7,7 @@ services:
       APP_PORT: 8080
 
   dashboard:
-    image: ghcr.io/12gaugekenshin/pocisys-public-pool-port:v0.1.2@sha256:53f5a1560e2d3956e2b7767fc18649bbff988ceb89d055e9591e3b15676ae0ac
+    image: ghcr.io/12gaugekenshin/pocisys-public-pool-port:v0.1.3@sha256:8859b61c5479df12bb9fc196e525d203a65189db4b0288dcc99e977a537e4c95
     restart: on-failure
     stop_grace_period: 20s
     depends_on:
