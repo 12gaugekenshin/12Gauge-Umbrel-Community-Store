@@ -1,5 +1,5 @@
 manifestVersion: 1
-id: minerwatch-discord-watchdog
+id: pocisys-miner-watchdog
 category: bitcoin
 name: Miner Watchdog
 version: "0.1.0"
