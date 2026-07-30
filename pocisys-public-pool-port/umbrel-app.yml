@@ -4,7 +4,7 @@ category: bitcoin
 name: PoCiSys Public Pool Port
 version: "0.1.4"
 tagline: Solo mine through your node with verified block states
-icon: icon.svg
+icon: icon-v2.png
 description: >-
   A solo-mining pool powered by your synchronized Umbrel Bitcoin Node. Connect
   ASICs on port 3334 and monitor fresh worker hashrate, shares, candidates,

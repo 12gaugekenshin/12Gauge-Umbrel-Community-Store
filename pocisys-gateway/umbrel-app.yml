@@ -4,7 +4,7 @@ category: ai
 name: PoCiSys Gateway
 version: "0.1.5"
 tagline: Private AI measurements without storing conversations
-icon: icon.svg
+icon: icon-v2.png
 description: >-
   A private measurement layer for PoCiSys GPU Runtime. Gateway forwards local
   AI responses unchanged while recording timing, model identity, token counts,
