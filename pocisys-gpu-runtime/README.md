@@ -40,6 +40,13 @@ http://pocisys-gpu-runtime_runtime_1:11434
 The endpoint is private to Umbrel's app network. It is not published to your
 LAN or the internet.
 
+## Runtime memory policy
+
+The runtime keeps one model loaded for up to 10 minutes after the most recent
+request. It then unloads the model and its active context automatically. Model
+concurrency is limited to one and the pending queue is bounded to prevent busy
+multi-user chats from accumulating unbounded work.
+
 ## Persistent models
 
 Models, logs, and cached driver files live under the external

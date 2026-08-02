@@ -2,7 +2,7 @@ manifestVersion: 1
 id: pocisys-gpu-runtime
 category: ai
 name: PoCiSys GPU Runtime
-version: "0.1.5"
+version: "0.1.6"
 tagline: Run private local AI on your Tesla P100
 icon: https://raw.githubusercontent.com/12gaugekenshin/PoCiSys-GPU-Runtime/main/pocisys-gpu-runtime/icon-v2.png
 description: >-
@@ -20,9 +20,9 @@ support: https://github.com/12gaugekenshin/PoCiSys-GPU-Runtime/issues
 port: 8780
 gallery: []
 releaseNotes: >-
-  Keeps the active local model resident indefinitely to eliminate idle reload
-  delays and updates the bounded dashboard Safe Test to use the installed
-  qwen3.5:9b-64k model alias.
+  Prevents long-running Discord activity from retaining excessive runtime
+  memory. Models now unload after 10 idle minutes, only one model and one
+  request run at a time, and the pending request queue is bounded.
 dependencies: []
 path: ""
 defaultUsername: ""
