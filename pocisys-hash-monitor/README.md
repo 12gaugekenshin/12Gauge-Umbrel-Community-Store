@@ -36,12 +36,10 @@ bounded memory; there is no growing long-term hashrate database. Miner controls,
 wallet data, and shell access are not exposed through MCP. Recent LuxOS control
 activity is also held in a fixed-size in-memory queue.
 
-## Latest release — v1.6.0
+## Latest release — v1.6.1
 
-Adds opt-in LuxOS Control Mode with a per-miner normal-profile ceiling,
-peak-period curtailment, per-hashboard Sleep/wake controls, and separately
-enabled guarded chip-health recovery. Sleep turns off each hashboard while
-leaving the LuxOS controller online so it can wake on schedule.
+Fixes LuxOS profile selection by replacing browser-dependent suggestion fields
+with reliable dropdowns populated directly from the miner's native profiles.
 
 Source and support: [PoCiSys Hash Monitor on GitHub](https://github.com/12gaugekenshin/PoCi-Hash-Monitor)
 

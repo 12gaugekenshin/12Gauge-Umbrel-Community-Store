@@ -953,13 +953,40 @@ function setFormValue(form, name, value) {
   const field = form.elements.namedItem(name);
   if (!field) return;
   if (field.type === "checkbox") field.checked = Boolean(value);
-  else field.value = value ?? "";
+  else {
+    const normalized = value ?? "";
+    if (field.tagName === "SELECT" && normalized && ![...field.options].some(option => option.value === String(normalized))) {
+      field.add(new Option(String(normalized), String(normalized)));
+    }
+    field.value = normalized;
+  }
+}
+
+function populateLuxosProfileSelect(select, profiles, selectedValue, placeholder) {
+  const selected = String(selectedValue || "");
+  const rows = [`<option value="">${escapeHtml(placeholder)}</option>`];
+  for (const profile of profiles) {
+    const name = String(profile.name || "").trim();
+    if (!name) continue;
+    const details = [];
+    if (Number.isFinite(Number(profile.frequency_mhz))) details.push(`${number(profile.frequency_mhz, 0)} MHz`);
+    if (Number.isFinite(Number(profile.watts))) details.push(`${number(profile.watts, 0)} W`);
+    const label = details.length ? `${name} — ${details.join(" · ")}` : name;
+    rows.push(`<option value="${escapeHtml(name)}">${escapeHtml(label)}</option>`);
+  }
+  if (selected && !profiles.some(profile => String(profile.name || "") === selected)) {
+    rows.push(`<option value="${escapeHtml(selected)}">${escapeHtml(selected)} — saved selection</option>`);
+  }
+  select.innerHTML = rows.join("");
+  select.value = selected;
 }
 
 function openMinerDialog(id = null) {
   const dialog = $("#miner-dialog");
   const form = $("#miner-form");
   form.reset();
+  populateLuxosProfileSelect(form.elements.control_full_profile, [], "", "Load profiles to choose…");
+  populateLuxosProfileSelect(form.elements.control_low_profile, [], "", "Load profiles to choose…");
   setFormValue(form, "id", "");
   setFormValue(form, "enabled", true);
   setFormValue(form, "group", "BTC Solo");
@@ -1009,14 +1036,14 @@ async function loadLuxosProfiles(button) {
   try {
     const result = await request(`/api/miners/${encodeURIComponent(minerId)}/luxos-profiles`);
     const profiles = result.profiles || [];
-    const options = profiles.map(item => `<option value="${escapeHtml(item.name)}">${item.watts == null ? "" : `${number(item.watts, 0)} W`}</option>`).join("");
-    $("#luxos-full-profiles").innerHTML = options;
-    $("#luxos-low-profiles").innerHTML = options;
-    if (!form.elements.control_full_profile.value && result.current_profile) form.elements.control_full_profile.value = result.current_profile;
-    if (!form.elements.control_low_profile.value && profiles.length) {
+    const selectedFull = form.elements.control_full_profile.value || result.current_profile || "";
+    let selectedLow = form.elements.control_low_profile.value || "";
+    if (!selectedLow && profiles.length) {
       const lowest = [...profiles].filter(item => Number.isFinite(Number(item.watts))).sort((a, b) => Number(a.watts) - Number(b.watts))[0];
-      if (lowest) form.elements.control_low_profile.value = lowest.name;
+      if (lowest) selectedLow = lowest.name;
     }
+    populateLuxosProfileSelect(form.elements.control_full_profile, profiles, selectedFull, "Choose the normal ceiling profile");
+    populateLuxosProfileSelect(form.elements.control_low_profile, profiles, selectedLow, "Choose a lower curtailed profile");
     $("#luxos-profile-result").innerHTML = profiles.length
       ? `<strong class="good">${profiles.length} native profile${profiles.length === 1 ? "" : "s"} loaded</strong><span>Current: ${escapeHtml(result.current_profile || "not reported")}</span>`
       : `<strong class="warn">No LuxOS profiles reported</strong><span>Check the miner and try again.</span>`;
