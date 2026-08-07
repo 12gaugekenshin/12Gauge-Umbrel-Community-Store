@@ -32,7 +32,7 @@ from services.system_stats import SystemStatsService
 from services.luxos_control import LuxOSControlError, LuxOSControlService
 
 
-APP_VERSION = "1.6.1"
+APP_VERSION = "1.6.2"
 ROOT = Path(__file__).resolve().parent
 WEB_ROOT = ROOT / "web"
 CONFIG_PATH = Path(os.environ.get("POCISYS_CONFIG_PATH", ROOT / "config.json")).resolve()

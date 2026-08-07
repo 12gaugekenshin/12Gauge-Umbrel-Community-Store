@@ -970,7 +970,8 @@ function populateLuxosProfileSelect(select, profiles, selectedValue, placeholder
     if (!name) continue;
     const details = [];
     if (Number.isFinite(Number(profile.frequency_mhz))) details.push(`${number(profile.frequency_mhz, 0)} MHz`);
-    if (Number.isFinite(Number(profile.watts))) details.push(`${number(profile.watts, 0)} W`);
+    if (Number.isFinite(Number(profile.setup_watts))) details.push(`~${number(profile.setup_watts, 0)} W setup est.`);
+    else if (Number.isFinite(Number(profile.watts))) details.push(`${number(profile.watts, 0)} W catalog est.`);
     const label = details.length ? `${name} — ${details.join(" · ")}` : name;
     rows.push(`<option value="${escapeHtml(name)}">${escapeHtml(label)}</option>`);
   }
@@ -1044,8 +1045,12 @@ async function loadLuxosProfiles(button) {
     }
     populateLuxosProfileSelect(form.elements.control_full_profile, profiles, selectedFull, "Choose the normal ceiling profile");
     populateLuxosProfileSelect(form.elements.control_low_profile, profiles, selectedLow, "Choose a lower curtailed profile");
+    const currentPower = Number.isFinite(Number(result.current_power_watts))
+      ? ` · ~${number(result.current_power_watts, 0)} W now (${result.power_reported_by_psu ? "PSU reported" : "LuxOS estimate"})`
+      : "";
+    const boards = Number.isFinite(Number(result.detected_boards)) ? ` · ${number(result.detected_boards, 0)} board${Number(result.detected_boards) === 1 ? "" : "s"}` : "";
     $("#luxos-profile-result").innerHTML = profiles.length
-      ? `<strong class="good">${profiles.length} native profile${profiles.length === 1 ? "" : "s"} loaded</strong><span>Current: ${escapeHtml(result.current_profile || "not reported")}</span>`
+      ? `<strong class="good">${profiles.length} native profile${profiles.length === 1 ? "" : "s"} loaded</strong><span>Current: ${escapeHtml(result.current_profile || "not reported")}${boards}${currentPower}</span>`
       : `<strong class="warn">No LuxOS profiles reported</strong><span>Check the miner and try again.</span>`;
   } finally {
     button.disabled = false;

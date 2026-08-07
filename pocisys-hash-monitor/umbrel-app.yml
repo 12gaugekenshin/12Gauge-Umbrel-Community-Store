@@ -2,7 +2,7 @@ manifestVersion: 1
 id: pocisys-hash-monitor
 category: bitcoin
 name: PoCiSys Hash Monitor
-version: "1.6.1"
+version: "1.6.2"
 tagline: Live SHA-256 fleet monitoring with optional LuxOS control
 icon: https://raw.githubusercontent.com/12gaugekenshin/PoCi-Hash-Monitor/main/pocisys-hash-monitor/icon-v2.png
 description: >-
@@ -35,8 +35,9 @@ gallery:
   - https://raw.githubusercontent.com/12gaugekenshin/PoCi-Hash-Monitor/HEAD/pocisys-hash-monitor/1.png
   - https://raw.githubusercontent.com/12gaugekenshin/PoCi-Hash-Monitor/HEAD/pocisys-hash-monitor/2.png
 releaseNotes: >-
-  Fixes LuxOS native-profile selection by replacing browser-dependent suggestion
-  fields with reliable dropdowns that display every profile reported by the miner.
+  Adjusts LuxOS profile power estimates to the miner's current hardware setup,
+  clearly distinguishes estimates from PSU-reported readings, and shows the
+  detected hashboard count beside the active profile.
 dependencies: []
 path: ""
 defaultUsername: ""

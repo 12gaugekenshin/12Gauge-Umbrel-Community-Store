@@ -22,6 +22,8 @@ class UmbrelComposeTests(unittest.TestCase):
         self.assertNotIn('list="luxos-full-profiles"', html)
         self.assertNotIn('list="luxos-low-profiles"', html)
         self.assertIn("populateLuxosProfileSelect", javascript)
+        self.assertIn("W setup est.", javascript)
+        self.assertIn("W catalog est.", javascript)
 
 
 if __name__ == "__main__":

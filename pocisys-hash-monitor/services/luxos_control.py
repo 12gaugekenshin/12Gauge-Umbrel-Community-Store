@@ -138,12 +138,47 @@ class LuxOSClient:
                 "step": str(row.get("Step") or "")[:20],
             })
         current_profile = None
+        current_power_watts = None
+        power_reported_by_psu = False
+        detected_boards = None
         try:
             config = self.call("config")
             current_profile = str(_first_row(config, "CONFIG").get("Profile") or "").strip() or None
         except Exception:
             pass
-        return {"profiles": compact, "current_profile": current_profile}
+        try:
+            power = _first_row(self.call("power"), "POWER")
+            current_power_watts = _number(power.get("Watts"))
+            power_reported_by_psu = bool(power.get("PSU"))
+        except Exception:
+            pass
+        try:
+            count = _integer(_first_row(self.call("asccount"), "ASCS").get("Count"))
+            if count is not None:
+                detected_boards = max(0, min(count, MAX_HASHBOARDS))
+        except Exception:
+            pass
+
+        current = next((row for row in compact if row.get("name") == current_profile), None)
+        catalog_watts = _number(current.get("watts")) if current else None
+        scale = None
+        if current_power_watts and current_power_watts >= 100 and catalog_watts and catalog_watts > 0:
+            candidate = current_power_watts / catalog_watts
+            if 0.2 <= candidate <= 1.5:
+                scale = candidate
+        if scale is not None:
+            for row in compact:
+                watts = _number(row.get("watts"))
+                row["setup_watts"] = round(watts * scale) if watts is not None else None
+
+        return {
+            "profiles": compact,
+            "current_profile": current_profile,
+            "current_power_watts": current_power_watts,
+            "power_reported_by_psu": power_reported_by_psu,
+            "detected_boards": detected_boards,
+            "profile_power_scale": scale,
+        }
 
     def chip_health(self, score_threshold: float):
         count_payload = self.call("asccount")

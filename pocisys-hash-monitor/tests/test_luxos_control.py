@@ -20,6 +20,26 @@ class RecordingClient(LuxOSClient):
 
 
 class LuxOSClientTests(unittest.TestCase):
+    def test_profiles_adjust_catalog_power_to_the_current_setup(self):
+        client = RecordingClient([
+            {"PROFILES": [
+                {"Profile Name": "low", "Frequency": 245, "Watts": 1200},
+                {"Profile Name": "Loki", "Frequency": 325, "Watts": 1590},
+            ]},
+            {"CONFIG": [{"Profile": "Loki"}]},
+            {"POWER": [{"PSU": False, "Watts": 1110}]},
+            {"ASCS": [{"Count": 2}]},
+        ])
+
+        result = client.profiles()
+
+        self.assertEqual(result["current_power_watts"], 1110)
+        self.assertFalse(result["power_reported_by_psu"])
+        self.assertEqual(result["detected_boards"], 2)
+        self.assertAlmostEqual(result["profile_power_scale"], 1110 / 1590)
+        self.assertEqual(result["profiles"][0]["setup_watts"], 838)
+        self.assertEqual(result["profiles"][1]["setup_watts"], 1110)
+
     def test_session_batch_uses_and_releases_own_session(self):
         client = RecordingClient([
             {"SESSION": [{"SessionID": "abc"}]},
