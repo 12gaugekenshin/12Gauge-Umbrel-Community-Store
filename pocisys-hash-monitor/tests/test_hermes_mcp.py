@@ -34,7 +34,7 @@ class HermesMcpTests(unittest.TestCase):
             },
         ]
         self.service = HermesMcpService(
-            version="1.6.2",
+            version="1.6.3",
             overview_provider=lambda: {"summary": {"online_miners": 1}},
             miners_provider=lambda: self.miners,
             pools_provider=lambda: [{"name": "My Public Pool", "available": True}],
@@ -66,7 +66,7 @@ class HermesMcpTests(unittest.TestCase):
 
     def test_initialize_and_tool_list(self):
         initialized = self.call("initialize", {"protocolVersion": "2025-06-18"})
-        self.assertEqual(initialized["result"]["serverInfo"]["version"], "1.6.2")
+        self.assertEqual(initialized["result"]["serverInfo"]["version"], "1.6.3")
         self.assertEqual(initialized["result"]["protocolVersion"], "2025-06-18")
         listed = self.call("tools/list")
         self.assertEqual(len(listed["result"]["tools"]), len(TOOLS))

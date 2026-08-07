@@ -241,6 +241,14 @@ class LuxOSControlServiceTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn(("restart_board", 2, 10), calls)
         self.assertLessEqual(len(service.recent_actions), 25)
 
+    async def test_zero_health_threshold_is_not_replaced_by_default(self):
+        config = control_config()
+        config["miners"][0]["chip_health_score_threshold"] = 0
+        service = LuxOSControlService(config, FakeAlerts())
+        with patch("services.luxos_control.LuxOSClient", FakeControlClient):
+            await service.refresh_health(config["miners"][0], force=True)
+        self.assertIn(("chip_health", 0.0), FakeControlClient.timeline)
+
 
 if __name__ == "__main__":
     unittest.main()

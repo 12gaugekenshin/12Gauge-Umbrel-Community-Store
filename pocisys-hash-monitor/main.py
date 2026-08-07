@@ -32,7 +32,7 @@ from services.system_stats import SystemStatsService
 from services.luxos_control import LuxOSControlError, LuxOSControlService
 
 
-APP_VERSION = "1.6.2"
+APP_VERSION = "1.6.3"
 ROOT = Path(__file__).resolve().parent
 WEB_ROOT = ROOT / "web"
 CONFIG_PATH = Path(os.environ.get("POCISYS_CONFIG_PATH", ROOT / "config.json")).resolve()
@@ -148,7 +148,7 @@ def clean_miner(data):
             control_low_profile=low_profile,
             control_full_profile=full_profile,
             auto_recover_hashboards=bool(data.get("auto_recover_hashboards", False)),
-            chip_health_score_threshold=max(50, min(100, as_float(data.get("chip_health_score_threshold"), 90))),
+            chip_health_score_threshold=max(0, min(100, as_float(data.get("chip_health_score_threshold"), 90))),
         )
     return cleaned
 

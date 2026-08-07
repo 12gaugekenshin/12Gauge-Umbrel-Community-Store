@@ -64,7 +64,7 @@ class HttpIntegrationTests(unittest.TestCase):
     def test_token_auth_and_mcp_tools_over_http(self):
         status, health = self.request("/health")
         self.assertEqual(status, 200)
-        self.assertEqual(health["version"], "1.6.2")
+        self.assertEqual(health["version"], "1.6.3")
 
         _, generated = self.request("/api/hermes/token", method="POST", body={})
         token = generated["token"]
@@ -118,6 +118,22 @@ class HttpIntegrationTests(unittest.TestCase):
             system_result["result"]["structuredContent"]["system"]["scope"],
             "container-visible host metrics",
         )
+
+    def test_used_hardware_can_save_a_low_chip_health_threshold(self):
+        miner = self.app.clean_miner({
+            "name": "Used LuxOS miner",
+            "ip": "192.0.2.10",
+            "type": "luxos",
+            "chip_health_score_threshold": 20,
+        })
+        self.assertEqual(miner["chip_health_score_threshold"], 20)
+        miner["chip_health_score_threshold"] = self.app.clean_miner({
+            "name": "Used LuxOS miner",
+            "ip": "192.0.2.10",
+            "type": "luxos",
+            "chip_health_score_threshold": 0,
+        })["chip_health_score_threshold"]
+        self.assertEqual(miner["chip_health_score_threshold"], 0)
 
 
 if __name__ == "__main__":

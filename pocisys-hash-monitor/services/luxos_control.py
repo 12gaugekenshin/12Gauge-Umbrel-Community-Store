@@ -407,7 +407,8 @@ class LuxOSControlService:
         if not force and now < self.health_due.get(miner_id, 0):
             return self.health_cache.get(miner_id)
         self.health_due[miner_id] = now + HEALTH_INTERVAL_SECONDS
-        threshold = float(miner.get("chip_health_score_threshold") or 90)
+        configured_threshold = miner.get("chip_health_score_threshold")
+        threshold = float(90 if configured_threshold in (None, "") else configured_threshold)
         timeout = max(5, self.config.get("app", {}).get("request_timeout_seconds", 4))
         try:
             snapshot = await asyncio.to_thread(LuxOSClient(miner["ip"], timeout).chip_health, threshold)

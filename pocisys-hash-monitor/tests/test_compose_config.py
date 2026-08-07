@@ -24,6 +24,7 @@ class UmbrelComposeTests(unittest.TestCase):
         self.assertIn("populateLuxosProfileSelect", javascript)
         self.assertIn("W setup est.", javascript)
         self.assertIn("W catalog est.", javascript)
+        self.assertIn('name="chip_health_score_threshold" type="number" min="0" max="100"', html)
 
 
 if __name__ == "__main__":
