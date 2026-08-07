@@ -2,7 +2,7 @@ manifestVersion: 1
 id: pocisys-hash-monitor
 category: bitcoin
 name: PoCiSys Hash Monitor
-version: "1.6.3"
+version: "1.6.4"
 tagline: Live SHA-256 fleet monitoring with optional LuxOS control
 icon: https://raw.githubusercontent.com/12gaugekenshin/PoCi-Hash-Monitor/main/pocisys-hash-monitor/icon-v2.png
 description: >-
@@ -35,9 +35,9 @@ gallery:
   - https://raw.githubusercontent.com/12gaugekenshin/PoCi-Hash-Monitor/HEAD/pocisys-hash-monitor/1.png
   - https://raw.githubusercontent.com/12gaugekenshin/PoCi-Hash-Monitor/HEAD/pocisys-hash-monitor/2.png
 releaseNotes: >-
-  Allows the LuxOS chip-health threshold to be tuned across the full 0-100
-  range for used hardware. A threshold of 0 reacts only to chips LuxOS
-  explicitly marks unhealthy.
+  Prevents redundant LuxOS profile commands when the requested normal or
+  curtailed profile is already active, avoiding unnecessary profile resets and
+  fan ramp-ups when control or its schedule is enabled.
 dependencies: []
 path: ""
 defaultUsername: ""

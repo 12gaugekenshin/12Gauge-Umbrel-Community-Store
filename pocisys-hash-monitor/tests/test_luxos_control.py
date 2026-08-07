@@ -169,14 +169,33 @@ class LuxOSControlServiceTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(any(call[0] in {"curtail", "sleep"} for call in calls))
         self.assertIn("whole-miner curtail sleep was not used", result["event"]["message"])
 
-    async def test_wake_restores_profile_then_starts_every_board(self):
+    async def test_wake_skips_matching_profile_then_starts_every_board(self):
         service = LuxOSControlService(control_config(), FakeAlerts())
         with patch("services.luxos_control.LuxOSClient", FakeControlClient):
             await service.execute("miner_1", "full")
         calls = FakeControlClient.timeline
-        profile_index = calls.index(("set_profile", "normal"))
-        boards_index = calls.index(("set_boards", [0, 1, 2], 10))
-        self.assertLess(profile_index, boards_index)
+        self.assertNotIn(("set_profile", "normal"), calls)
+        self.assertIn(("set_boards", [0, 1, 2], 10), calls)
+
+    async def test_matching_profile_action_does_not_send_profileset(self):
+        service = LuxOSControlService(control_config(low_mode="profile"), FakeAlerts())
+        with patch("services.luxos_control.LuxOSClient", FakeControlClient):
+            result = await service.execute("miner_1", "full")
+        self.assertNotIn(("set_profile", "normal"), FakeControlClient.timeline)
+        self.assertIn("already active", result["event"]["message"])
+
+    async def test_schedule_enable_does_not_reapply_matching_profile(self):
+        config = control_config(low_mode="profile")
+        config["miners"][0]["control_schedule_enabled"] = True
+        service = LuxOSControlService(config, FakeAlerts())
+        service.health_cache["miner_1"] = {"current_profile": "normal"}
+        with (
+            patch.object(service, "_desired_target", return_value="full"),
+            patch("services.luxos_control.LuxOSClient", FakeControlClient),
+        ):
+            await service._evaluate_schedules()
+        self.assertNotIn(("set_profile", "normal"), FakeControlClient.timeline)
+        self.assertEqual(service.last_schedule_target["miner_1"], "full")
 
     async def test_curtailed_profile_cannot_exceed_normal_ceiling(self):
         config = control_config(low_mode="profile")

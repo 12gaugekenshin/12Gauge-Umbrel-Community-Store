@@ -36,10 +36,10 @@ bounded memory; there is no growing long-term hashrate database. Miner controls,
 wallet data, and shell access are not exposed through MCP. Recent LuxOS control
 activity is also held in a fixed-size in-memory queue.
 
-## Latest release — v1.6.3
+## Latest release — v1.6.4
 
-Allows the LuxOS chip-health threshold to be tuned from 0–100 for used hardware.
-A threshold of 0 reacts only when LuxOS explicitly marks a chip unhealthy.
+Prevents redundant LuxOS profile commands when the selected profile is already
+active, avoiding unnecessary profile resets and fan ramp-ups.
 
 Source and support: [PoCiSys Hash Monitor on GitHub](https://github.com/12gaugekenshin/PoCi-Hash-Monitor)
 

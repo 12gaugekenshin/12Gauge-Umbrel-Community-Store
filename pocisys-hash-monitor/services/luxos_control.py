@@ -536,6 +536,9 @@ class LuxOSControlService:
             if not normal:
                 raise LuxOSControlError("The selected Normal Operating Profile is no longer available on LuxOS")
             self._assert_low_not_above_normal(profiles[profile], normal)
+        if str(available.get("current_profile") or "").strip() == profile:
+            self.health_cache.setdefault(miner.get("id"), {})["current_profile"] = profile
+            return f"Native LuxOS profile {profile} is already active; no profile command was sent."
         timeout = self.config.get("app", {}).get("request_timeout_seconds", 4)
         await asyncio.to_thread(LuxOSClient(miner["ip"], timeout).set_profile, profile)
         self.health_cache.setdefault(miner.get("id"), {})["current_profile"] = profile
@@ -660,6 +663,14 @@ class LuxOSControlService:
                 and current_profile
                 and current_profile != expected_profile
             )
+            if (
+                miner.get("control_low_mode", "profile") == "profile"
+                and expected_profile
+                and current_profile == expected_profile
+            ):
+                self.last_schedule_target[miner_id] = desired
+                self.schedule_retry_after.pop(miner_id, None)
+                continue
             if self.last_schedule_target.get(miner_id) == desired and not watchdog_mismatch:
                 continue
             if now < self.schedule_retry_after.get(miner_id, 0):
