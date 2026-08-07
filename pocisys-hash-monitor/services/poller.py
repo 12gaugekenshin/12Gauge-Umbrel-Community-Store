@@ -8,9 +8,10 @@ from .ping import tcp_ping
 
 
 class MinerPoller:
-    def __init__(self, config: dict, alert_engine):
+    def __init__(self, config: dict, alert_engine, status_enricher=None):
         self.config = config
         self.alert_engine = alert_engine
+        self.status_enricher = status_enricher
         self.latest = {}
         self.last_poll = None
         self.running = False
@@ -60,6 +61,8 @@ class MinerPoller:
         status.pop("raw", None)
         status["id"] = miner.get("id")
         status["checked_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        if self.status_enricher:
+            status = self.status_enricher(status)
         await self.alert_engine.evaluate_miner(status, miner)
         return miner, status
 

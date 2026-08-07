@@ -129,7 +129,7 @@
     </section>
 
     <section id="page-settings" class="page">
-      <div class="page-heading"><div><p class="eyebrow">App configuration</p><h1>Settings</h1><p>Changes are written safely to config.json. Miner firmware remains read-only.</p></div></div>
+      <div class="page-heading"><div><p class="eyebrow">App configuration</p><h1>Settings</h1><p>Monitoring is read-only by default. Optional LuxOS Control Mode must be explicitly armed.</p></div></div>
       <form id="settings-form" class="settings-layout">
         <section class="settings-card">
           <div class="settings-card-head"><span class="settings-icon">⌁</span><div><h2>Monitoring</h2><p>Polling, timeouts, and dashboard layout.</p></div></div>
@@ -143,6 +143,17 @@
             <label class="switch-row full"><span><strong>Difficulty Rain</strong><small>Screen-page Matrix backdrop driven by live best-share difficulty. Uses no saved history.</small></span><input name="difficulty_rain_enabled" type="checkbox" role="switch"></label>
             <label class="switch-row full"><span><strong>LAN dashboard access</strong><small>Listen on your network so dashboard links can open from another device. Requires restart and firewall access.</small></span><input name="lan_access_enabled" type="checkbox" role="switch"></label>
           </div>
+        </section>
+
+        <section class="settings-card control-settings-card">
+          <div class="settings-card-head"><span class="settings-icon control-color">L</span><div><h2>LuxOS Control Mode</h2><p>Optional guarded access to existing LuxOS profiles and individual hashboards.</p></div></div>
+          <label class="switch-row"><span><strong>Enable LuxOS Control Mode</strong><small>Master safety switch. Off by default; AxeOS, NerdQaxe, Avalon, and generic cgminer devices always remain read-only.</small></span><input name="luxos_control_enabled" type="checkbox" role="switch"></label>
+          <div class="control-warning"><strong>Sleep means hashboards off.</strong><span>PoCiSys turns each LuxOS hashboard off individually. It never invokes the whole-miner sleep/curtail button, so the controller remains reachable for wake and recovery.</span></div>
+          <div class="form-grid two">
+            <label><span>Schedule timezone</span><input name="control_timezone" maxlength="80" placeholder="America/New_York"><small>Usually detected from this browser. Used only for LuxOS schedules.</small></label>
+            <label><span>UTC offset fallback</span><div class="input-unit"><input name="control_utc_offset_minutes" type="number" min="-840" max="840" step="1"><em>minutes</em></div><small>Used if the named timezone is unavailable.</small></label>
+          </div>
+          <p class="settings-explainer">Only existing native LuxOS profiles can be selected. The per-miner Normal Operating Profile is a hard ceiling: PoCiSys never commands a higher profile. It does not create profiles or directly write frequency and voltage values. Recent control activity is limited to 25 in-memory entries.</p>
         </section>
 
         <section class="settings-card discord-settings-card">
@@ -164,6 +175,7 @@
             <label class="switch-row"><span><strong>Local pool critical alerts</strong><small>RPC/node errors, security-looking log events, critical warnings, and block/candidate events only.</small></span><input name="send_pool_alerts" type="checkbox" role="switch"></label>
             <label class="switch-row"><span><strong>Pool switches</strong><small>A miner changes active pool or fallback source.</small></span><input name="send_pool_switch_alerts" type="checkbox" role="switch"></label>
             <label class="switch-row"><span><strong>Bad-share increases</strong><small>New rejected, invalid, or stale shares.</small></span><input name="send_share_alerts" type="checkbox" role="switch"></label>
+            <label class="switch-row"><span><strong>LuxOS control actions</strong><small>Schedules, sleep/wake, manual board actions, and guarded chip-health recovery.</small></span><input name="send_control_alerts" type="checkbox" role="switch"></label>
             <label class="switch-row"><span><strong>Verbose local pool activity</strong><small>Optional rate-limited activity messages. Off by default so accepted shares and normal chatter do not spam Discord.</small></span><input name="verbose_pool_events" type="checkbox" role="switch"></label>
           </div>
           <button type="button" data-action="test-discord">Send test message</button>
@@ -218,7 +230,7 @@
           </div>
         </section>
 
-        <div class="settings-save"><span id="settings-note">Read-only miner access. Only PoCiSys configuration is written to disk.</span><button class="primary" type="submit">Save settings</button></div>
+        <div class="settings-save"><span id="settings-note">Read-only by default. LuxOS writes require both the global and per-miner control switches.</span><button class="primary" type="submit">Save settings</button></div>
       </form>
     </section>
   </main>
@@ -247,6 +259,22 @@
           <label><span>Temperature critical</span><div class="input-unit"><input name="temp_critical_c" type="number" min="0" max="150" value="80"><em> C</em></div></label>
           <label><span>Display order</span><input name="display_order" type="number" min="0" max="9999" value="0"></label>
         </div></div>
+        <div class="form-section luxos-control-fields" hidden>
+          <div class="control-section-head"><div><h3>LuxOS control (optional)</h3><p class="form-help">Uses only this miner's existing native LuxOS profiles and per-hashboard actions.</p></div><button type="button" data-action="load-luxos-profiles">Load profiles</button></div>
+          <div id="luxos-profile-result" class="test-result"></div>
+          <label class="switch-row enabled-row"><span><strong>Arm control for this miner</strong><small>The dashboard-wide LuxOS Control Mode switch must also be enabled.</small></span><input name="control_enabled" type="checkbox" role="switch"></label>
+          <div class="form-grid two">
+            <label><span>Normal Operating Profile</span><input name="control_full_profile" list="luxos-full-profiles" maxlength="80" placeholder="Choose this miner's normal profile"><datalist id="luxos-full-profiles"></datalist><small>Hard ceiling. PoCiSys will never command a profile above this selection.</small></label>
+            <label class="luxos-low-profile-field"><span>Curtailed profile</span><input name="control_low_profile" list="luxos-low-profiles" maxlength="80" placeholder="Choose an existing lower profile"><datalist id="luxos-low-profiles"></datalist></label>
+            <label><span>Curtailment behavior</span><select name="control_low_mode"><option value="profile">Apply curtailed profile</option><option value="boards_off">Sleep - turn every hashboard off</option></select><small>Sleep never calls LuxOS whole-miner curtail. The controller stays online.</small></label>
+            <label><span>Chip health score threshold</span><div class="input-unit"><input name="chip_health_score_threshold" type="number" min="50" max="100" step="1"><em>/ 100</em></div></label>
+            <label><span>Peak period starts</span><input name="control_low_time" type="time"><small>Automatically curtail at this local time.</small></label>
+            <label><span>Normal operation resumes</span><input name="control_full_time" type="time"><small>Wake boards and restore the Normal Operating Profile.</small></label>
+          </div>
+          <label class="switch-row enabled-row"><span><strong>Enable automatic curtailing schedule</strong><small>During the peak period, apply the curtailed profile or Sleep. Outside it, restore the Normal Operating Profile and start the boards.</small></span><input name="control_schedule_enabled" type="checkbox" role="switch"></label>
+          <label class="switch-row enabled-row"><span><strong>Automatic hashboard recovery</strong><small>After three consecutive low chip-health readings, restart only the affected board. Fixed six-hour board cooldown and ten-minute observation window prevent loops.</small></span><input name="auto_recover_hashboards" type="checkbox" role="switch"></label>
+          <div class="control-warning compact"><strong>Emergency restore is best effort.</strong><span>PoCiSys restores the selected normal profile and starts boards when it can communicate with LuxOS. If Umbrel, PoCiSys, or the miner is unreachable, no controller can issue that command until communication returns.</span></div>
+        </div>
         <label class="switch-row enabled-row"><span><strong>Enable monitoring</strong><small>Disabled miners stay configured but are not polled.</small></span><input name="enabled" type="checkbox" role="switch" checked></label>
         <div id="miner-test-result" class="test-result"></div>
       </div>

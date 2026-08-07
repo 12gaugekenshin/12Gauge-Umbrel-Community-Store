@@ -8,7 +8,10 @@
     "dashboard_density": "comfortable",
     "difficulty_rain_enabled": true,
     "dashboard_base_url": "",
-    "lan_access_enabled": false
+    "lan_access_enabled": false,
+    "luxos_control_enabled": false,
+    "control_timezone": "auto",
+    "control_utc_offset_minutes": 0
   },
   "miners": [],
   "pools": [],
@@ -20,6 +23,7 @@
     "send_hashrate_alerts": true,
     "send_temperature_alerts": true,
     "send_chip_health_alerts": true,
+    "send_control_alerts": true,
     "send_best_diff_alerts": true,
     "send_block_found_alerts": true,
     "send_pool_alerts": true,

@@ -29,9 +29,10 @@ from services.poller import MinerPoller
 from services.pool_logs import PoolLogService, probe_public_pool
 from services.pool_probe import PoolConnectionProbe, PoolProbeCooldown
 from services.system_stats import SystemStatsService
+from services.luxos_control import LuxOSControlError, LuxOSControlService
 
 
-APP_VERSION = "1.5.1"
+APP_VERSION = "1.6.0"
 ROOT = Path(__file__).resolve().parent
 WEB_ROOT = ROOT / "web"
 CONFIG_PATH = Path(os.environ.get("POCISYS_CONFIG_PATH", ROOT / "config.json")).resolve()
@@ -77,6 +78,22 @@ def clean_host(value):
     return host
 
 
+def clean_time(value, default):
+    text = str(value or default).strip()
+    if not re.fullmatch(r"(?:[01]\d|2[0-3]):[0-5]\d", text):
+        raise ApiError(400, "Schedule times must use HH:MM")
+    return text
+
+
+def clean_profile(value, label):
+    text = str(value or "").strip()
+    if len(text) > 80 or "," in text or any(ord(char) < 32 for char in text):
+        raise ApiError(400, f"Choose a valid {label} LuxOS profile")
+    if text in {"0", "1", "2", "3"}:
+        raise ApiError(400, f"LuxOS profile name '{text}' is ambiguous; choose a named profile")
+    return text
+
+
 def clean_miner(data):
     name = str(data.get("name") or "").strip()
     miner_type = str(data.get("type") or "").lower()
@@ -95,7 +112,7 @@ def clean_miner(data):
     minimum = as_float(data.get("min_hashrate_ths"), None)
     if minimum is not None and minimum < 0:
         raise ApiError(400, "Minimum hashrate cannot be negative")
-    return {
+    cleaned = {
         "name": name,
         "ip": clean_host(data.get("ip")),
         "type": miner_type,
@@ -106,6 +123,34 @@ def clean_miner(data):
         "temp_warning_c": warning,
         "temp_critical_c": critical,
     }
+    if miner_type == "luxos":
+        low_mode = str(data.get("control_low_mode") or "profile")
+        if low_mode not in {"profile", "boards_off"}:
+            raise ApiError(400, "Choose low profile or Sleep (hashboards off) mode")
+        low_time = clean_time(data.get("control_low_time"), "16:00")
+        full_time = clean_time(data.get("control_full_time"), "21:00")
+        if low_time == full_time and data.get("control_schedule_enabled"):
+            raise ApiError(400, "Low-power and full-power schedule times must be different")
+        low_profile = clean_profile(data.get("control_low_profile"), "low-power")
+        full_profile = clean_profile(data.get("control_full_profile"), "normal")
+        control_enabled = bool(data.get("control_enabled", False))
+        schedule_enabled = bool(data.get("control_schedule_enabled", False))
+        if control_enabled and not full_profile:
+            raise ApiError(400, "Select the normal LuxOS profile before enabling miner control")
+        if control_enabled and schedule_enabled and low_mode == "profile" and not low_profile:
+            raise ApiError(400, "Select the low-power LuxOS profile for this schedule")
+        cleaned.update(
+            control_enabled=control_enabled,
+            control_schedule_enabled=schedule_enabled,
+            control_low_mode=low_mode,
+            control_low_time=low_time,
+            control_full_time=full_time,
+            control_low_profile=low_profile,
+            control_full_profile=full_profile,
+            auto_recover_hashboards=bool(data.get("auto_recover_hashboards", False)),
+            chip_health_score_threshold=max(50, min(100, as_float(data.get("chip_health_score_threshold"), 90))),
+        )
+    return cleaned
 
 
 def clean_pool(data):
@@ -140,7 +185,8 @@ if not CONFIG_PATH.exists():
 
 config = load_config(CONFIG_PATH)
 alerts = AlertEngine(config)
-poller = MinerPoller(config, alerts)
+luxos_control = LuxOSControlService(config, alerts)
+poller = MinerPoller(config, alerts, luxos_control.enrich_status)
 pool_logs = PoolLogService(config.get("pools", []), alerts, poller.statuses)
 network_data = NetworkDataService()
 pool_probe = PoolConnectionProbe()
@@ -153,6 +199,7 @@ def commit_config(updated):
     apply_in_place(config, updated)
     try:
         alerts.reconfigure()
+        luxos_control.reconfigure()
         pool_logs.reconfigure(config["pools"])
         poller.reconfigure()
     except Exception as exc:
@@ -206,6 +253,9 @@ def current_settings():
         "difficulty_rain_enabled": app_config.get("difficulty_rain_enabled", True),
         "dashboard_base_url": app_config.get("dashboard_base_url", ""),
         "lan_access_enabled": app_config.get("lan_access_enabled", False),
+        "luxos_control_enabled": app_config.get("luxos_control_enabled", False),
+        "control_timezone": app_config.get("control_timezone", "auto"),
+        "control_utc_offset_minutes": app_config.get("control_utc_offset_minutes", 0),
         "discord_enabled": discord.get("enabled", False),
         "webhook_configured": bool(discord.get("webhook_url")),
         "send_offline_alerts": discord.get("send_offline_alerts", True),
@@ -213,6 +263,7 @@ def current_settings():
         "send_hashrate_alerts": discord.get("send_hashrate_alerts", True),
         "send_temperature_alerts": discord.get("send_temperature_alerts", True),
         "send_chip_health_alerts": discord.get("send_chip_health_alerts", True),
+        "send_control_alerts": discord.get("send_control_alerts", True),
         "send_best_diff_alerts": discord.get("send_best_diff_alerts", True),
         "send_block_found_alerts": discord.get("send_block_found_alerts", True),
         "send_pool_alerts": discord.get("send_pool_alerts", True),
@@ -335,7 +386,7 @@ async def discover_public_pool(host=None):
 
 async def api_dispatch(method, path, data):
     parts = [urllib.parse.unquote(item) for item in path.strip("/").split("/") if item]
-    statuses = poller.statuses()
+    statuses = [luxos_control.enrich_status(item) for item in poller.statuses()]
 
     if method == "GET" and path == "/health":
         return {"ok": True, "version": APP_VERSION}
@@ -354,9 +405,11 @@ async def api_dispatch(method, path, data):
             "discord": alerts.status(),
             "pools": pool_statuses,
             "pool_event_count": len(pool_logs.events),
+            "control": luxos_control.status(),
             "ui": {
                 "dashboard_density": config.get("app", {}).get("dashboard_density", "comfortable"),
                 "difficulty_rain_enabled": config.get("app", {}).get("difficulty_rain_enabled", True),
+                "luxos_control_enabled": config.get("app", {}).get("luxos_control_enabled", False),
             },
         }
     if method == "GET" and path == "/api/miners":
@@ -442,6 +495,31 @@ async def api_dispatch(method, path, data):
                     miner["display_order"] = index
                 commit_config(updated)
             return {"ok": True}
+
+    if method == "GET" and path == "/api/control":
+        return luxos_control.status()
+    if len(parts) == 4 and parts[:2] == ["api", "miners"] and parts[3] == "luxos-profiles":
+        miner_id = parts[2]
+        if method != "GET":
+            raise ApiError(405, "Method not allowed")
+        try:
+            return await luxos_control.list_profiles(miner_id, force=True)
+        except LuxOSControlError as exc:
+            raise ApiError(409, str(exc))
+    if len(parts) == 4 and parts[:2] == ["api", "miners"] and parts[3] == "control":
+        miner_id = parts[2]
+        if method == "GET":
+            return luxos_control.miner_status(miner_id)
+        if method == "POST":
+            try:
+                return await luxos_control.execute(
+                    miner_id,
+                    str(data.get("action") or ""),
+                    board_id=data.get("board_id"),
+                    source="manual dashboard action",
+                )
+            except (LuxOSControlError, TypeError, ValueError) as exc:
+                raise ApiError(409, str(exc))
 
     if method == "GET" and path == "/api/pools":
         try:
@@ -555,6 +633,9 @@ async def api_dispatch(method, path, data):
             dashboard_url = str(data.get("dashboard_base_url") or "").strip().rstrip("/")
             if dashboard_url and not dashboard_url.startswith(("http://", "https://")):
                 raise ApiError(400, "Dashboard link must begin with http:// or https://")
+            control_timezone = str(data.get("control_timezone") or "auto").strip()[:80]
+            if not re.fullmatch(r"[A-Za-z0-9_+./-]+", control_timezone):
+                raise ApiError(400, "Invalid control schedule timezone")
             app_config.update(
                 poll_interval_seconds=max(2, min(3600, as_int(data.get("poll_interval_seconds"), 10))),
                 dashboard_port=max(1024, min(65535, as_int(data.get("dashboard_port"), 8765))),
@@ -565,6 +646,9 @@ async def api_dispatch(method, path, data):
                 difficulty_rain_enabled=bool(data.get("difficulty_rain_enabled", True)),
                 dashboard_base_url=dashboard_url,
                 lan_access_enabled=bool(data.get("lan_access_enabled", False)),
+                luxos_control_enabled=bool(data.get("luxos_control_enabled", False)),
+                control_timezone=control_timezone,
+                control_utc_offset_minutes=max(-840, min(840, as_int(data.get("control_utc_offset_minutes"), 0))),
             )
             discord = updated["discord"]
             webhook = str(data.get("webhook_url") or "").strip()
@@ -582,6 +666,7 @@ async def api_dispatch(method, path, data):
                 send_hashrate_alerts=bool(data.get("send_hashrate_alerts", True)),
                 send_temperature_alerts=bool(data.get("send_temperature_alerts", True)),
                 send_chip_health_alerts=bool(data.get("send_chip_health_alerts", True)),
+                send_control_alerts=bool(data.get("send_control_alerts", True)),
                 send_best_diff_alerts=bool(data.get("send_best_diff_alerts", True)),
                 send_block_found_alerts=bool(data.get("send_block_found_alerts", True)),
                 send_pool_alerts=bool(data.get("send_pool_alerts", True)),
@@ -648,6 +733,7 @@ def run_event_loop():
 
     async def boot():
         poller.start()
+        luxos_control.start()
         pool_logs.start()
         network_data.start()
 
@@ -806,6 +892,7 @@ class PoCiSysServer(ThreadingHTTPServer):
 def shutdown_services():
     async def stop():
         await poller.stop()
+        await luxos_control.stop()
         await pool_logs.stop()
         await network_data.stop()
 

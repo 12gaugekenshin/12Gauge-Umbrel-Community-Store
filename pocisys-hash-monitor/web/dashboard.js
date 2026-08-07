@@ -44,6 +44,9 @@ const DEFAULT_SETTINGS = {
   difficulty_rain_enabled: true,
   dashboard_base_url: "",
   lan_access_enabled: false,
+  luxos_control_enabled: false,
+  control_timezone: "auto",
+  control_utc_offset_minutes: 0,
   discord_enabled: false,
   webhook_configured: false,
   hermes_enabled: false,
@@ -60,6 +63,7 @@ const DEFAULT_SETTINGS = {
   send_pool_alerts: true,
   send_pool_switch_alerts: true,
   send_share_alerts: true,
+  send_control_alerts: true,
   verbose_pool_events: false,
   btc_enabled: true,
   bch_enabled: true,
@@ -550,6 +554,42 @@ function renderChipHealth(status) {
   }).join("")}</div>`;
 }
 
+function luxosControlPanel(config, status) {
+  if (String(config.type || "").toLowerCase() !== "luxos") return "";
+  const control = status?.luxos_control || state?.control?.miners?.[config.id] || {};
+  const healthBoards = status?.chip_health?.items || [];
+  const boardCount = healthBoards.length;
+  const schedule = control.schedule || {};
+  const armed = Boolean(control.armed);
+  const currentProfile = control.current_profile || status?.current_profile || "Not reported";
+  const scheduleText = schedule.enabled
+    ? `${schedule.desired === "low" ? "Low / Sleep" : "Full"} now · ${schedule.low_time} low · ${schedule.full_time} wake`
+    : "Daily schedule disabled";
+  const boardRows = healthBoards.map(board => {
+    const boardId = Number(board.board_id);
+    const score = board.minimum_score == null ? "No score" : `Minimum score ${number(board.minimum_score, 1)}`;
+    const chipText = board.chips_total ? `${number(board.chips_healthy, 0)} / ${number(board.chips_total, 0)} chips healthy` : "Chip count unavailable";
+    return `<div class="control-board-row">
+      <div><strong>${escapeHtml(board.name || `Hashboard ${boardId + 1}`)}</strong><span class="${board.status === "warning" ? "warn" : "good"}">${escapeHtml(chipText)} · ${escapeHtml(score)}</span></div>
+      <div class="control-board-actions"><button data-action="luxos-control" data-control-action="board_off" data-id="${config.id}" data-board="${boardId}" ${armed ? "" : "disabled"}>Turn off</button><button data-action="luxos-control" data-control-action="board_on" data-id="${config.id}" data-board="${boardId}" ${armed ? "" : "disabled"}>Start</button><button data-action="luxos-control" data-control-action="restart_board" data-id="${config.id}" data-board="${boardId}" ${armed ? "" : "disabled"}>Restart</button></div>
+    </div>`;
+  }).join("");
+  const actions = (control.recent_actions || []).map(item => `<div class="control-action-row"><span>${appTime(item.time)}</span><strong class="${item.success ? "good" : "bad"}">${escapeHtml(item.action)}</strong><small>${escapeHtml(item.message)}</small></div>`).join("");
+  return `<section class="panel luxos-control-panel">
+    <div class="panel-title"><div><h2>LuxOS control</h2><p>Existing profiles and individual hashboards only</p></div><span class="pill ${armed ? "good-border" : "warn-border"}">${armed ? "Armed" : "Read-only"}</span></div>
+    <div class="control-summary-grid">
+      <div><span>Current / ceiling profile</span><strong>${escapeHtml(currentProfile)} / ${escapeHtml(control.normal_profile_ceiling || config.control_full_profile || "Not selected")}</strong></div>
+      <div><span>Schedule</span><strong>${escapeHtml(scheduleText)}</strong></div>
+      <div><span>Hashboards</span><strong>${boardCount || "Not reported"}</strong></div>
+    </div>
+    ${armed ? `<div class="control-primary-actions"><button data-action="luxos-control" data-control-action="low" data-id="${config.id}">${config.control_low_mode === "boards_off" ? "Curtail now - Sleep" : "Curtail now"}</button><button class="primary" data-action="luxos-control" data-control-action="full" data-id="${config.id}">Resume normal operation</button></div>` : `<div class="control-warning compact"><strong>Control is not armed.</strong><span>Enable the dashboard-wide switch in Settings and the per-miner switch under Edit setup. Monitoring remains read-only.</span></div>`}
+    <div class="control-board-list">${boardRows || `<div class="empty compact-empty">Hashboard health is waiting for LuxOS.</div>`}</div>
+    ${control.health_error ? `<p class="control-error">Health check: ${escapeHtml(control.health_error)}</p>` : ""}
+    ${actions ? `<div class="control-actions-log"><h3>Recent bounded actions</h3>${actions}</div>` : ""}
+    <p class="control-footnote">Sleep turns every hashboard off individually and leaves the LuxOS controller online. PoCiSys never invokes whole-miner curtail sleep.</p>
+  </section>`;
+}
+
 function renderMinerDetail(id) {
   const config = configuredMiner(id);
   if (!config) {
@@ -596,6 +636,7 @@ function renderMinerDetail(id) {
       ${status?.fans?.length ? `<div class="fan-grid">${status.fans.map(fan => `<div><span>${escapeHtml(fan.name)}</span><strong>${number(fan.rpm, 0)} RPM</strong></div>`).join("")}</div>` : ""}
       <div class="threshold-note">Alerts at ${number(config.temp_warning_c)} C · Critical at ${number(config.temp_critical_c)} C</div></section>
     <section class="panel chip-health-panel"><div class="panel-title"><h2>Chip health</h2><span class="pill">${status?.chip_health?.reported ? `${number(status.chip_health.healthy, 0)} / ${number(status.chip_health.total, 0)} healthy` : "Not reported"}</span></div>${renderChipHealth(status)}</section>
+    ${luxosControlPanel(config, status)}
     <section class="panel"><div class="panel-title"><h2>Pool</h2><span class="${status?.pool?.connected ? "good" : "warn"}">${escapeHtml(status?.pool?.status)}</span></div><div class="pool-url">${privateMarkup(status?.pool?.url || "Pool URL not reported")}</div><div class="info-list"><div><span>Connection</span><strong>${status?.pool?.connected == null ? "Unknown" : status.pool.connected ? "Connected" : "Disconnected"}</strong></div>${infoRow("Source", status?.pool?.source)}<div><span>Valid shares</span><strong>${number(shares.valid || 0, 0)}</strong></div></div></section>
     <section class="panel"><div class="panel-title"><h2>Share quality</h2></div><div class="sensor-grid">${detailStat("Valid", number(shares.valid || 0, 0))}${detailStat("Invalid", number(shares.invalid || 0, 0))}${detailStat("Stale", number(shares.stale || 0, 0))}${detailStat("Rejected", number(shares.rejected || 0, 0))}</div></section>
   </div>`;
@@ -860,7 +901,7 @@ async function refresh() {
     state = await request("/api/status");
     renderAll();
     $(".connection").className = "connection live";
-    $("#connection-text").textContent = "Live · Read-only";
+    $("#connection-text").textContent = state.ui?.luxos_control_enabled ? "Live · LuxOS control armed" : "Live · Read-only";
     if (location.pathname === "/pools") loadPoolEvents();
   } catch (error) {
     $(".connection").className = "connection down";
@@ -895,6 +936,11 @@ function fillSettings() {
     if (field.type === "checkbox") field.checked = Boolean(value);
     else field.value = value ?? "";
   }
+  if (!form.elements.control_timezone.value || form.elements.control_timezone.value === "auto") {
+    const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (detected) form.elements.control_timezone.value = detected;
+    form.elements.control_utc_offset_minutes.value = -new Date().getTimezoneOffset();
+  }
   $("#webhook-state").textContent = settings.webhook_configured ? "A webhook is configured and hidden." : "No webhook configured.";
   const mcpPath = settings.hermes_mcp_path || "/mcp";
   $("#hermes-mcp-url").value = `${location.origin}${mcpPath}`;
@@ -920,7 +966,15 @@ function openMinerDialog(id = null) {
   setFormValue(form, "temp_warning_c", 70);
   setFormValue(form, "temp_critical_c", 80);
   setFormValue(form, "display_order", managedMiners.length + 1);
+  setFormValue(form, "control_enabled", false);
+  setFormValue(form, "control_schedule_enabled", false);
+  setFormValue(form, "control_low_mode", "profile");
+  setFormValue(form, "control_low_time", "16:00");
+  setFormValue(form, "control_full_time", "21:00");
+  setFormValue(form, "auto_recover_hashboards", false);
+  setFormValue(form, "chip_health_score_threshold", 90);
   $("#miner-test-result").innerHTML = "";
+  $("#luxos-profile-result").innerHTML = "";
   if (id) {
     const config = configuredMiner(id);
     if (!config) return;
@@ -929,8 +983,46 @@ function openMinerDialog(id = null) {
   } else {
     $("#miner-dialog-title").textContent = "Add miner";
   }
+  syncLuxosControlFields();
   dialog.showModal();
   setTimeout(() => form.elements.name.focus(), 20);
+}
+
+function syncLuxosControlFields() {
+  const form = $("#miner-form");
+  const isLuxos = form.elements.type.value === "luxos";
+  const wrapper = $(".luxos-control-fields", form);
+  if (wrapper) wrapper.hidden = !isLuxos;
+  const lowProfile = $(".luxos-low-profile-field", form);
+  if (lowProfile) lowProfile.hidden = form.elements.control_low_mode.value === "boards_off";
+}
+
+async function loadLuxosProfiles(button) {
+  const form = $("#miner-form");
+  const minerId = form.elements.id.value;
+  if (!minerId) {
+    $("#luxos-profile-result").innerHTML = `<strong class="warn">Save and test this LuxOS miner first</strong><span>PoCiSys reads profile names directly from the miner; it does not guess or create them.</span>`;
+    return;
+  }
+  button.disabled = true;
+  $("#luxos-profile-result").innerHTML = `<span class="testing-pulse"></span> Reading native LuxOS profiles…`;
+  try {
+    const result = await request(`/api/miners/${encodeURIComponent(minerId)}/luxos-profiles`);
+    const profiles = result.profiles || [];
+    const options = profiles.map(item => `<option value="${escapeHtml(item.name)}">${item.watts == null ? "" : `${number(item.watts, 0)} W`}</option>`).join("");
+    $("#luxos-full-profiles").innerHTML = options;
+    $("#luxos-low-profiles").innerHTML = options;
+    if (!form.elements.control_full_profile.value && result.current_profile) form.elements.control_full_profile.value = result.current_profile;
+    if (!form.elements.control_low_profile.value && profiles.length) {
+      const lowest = [...profiles].filter(item => Number.isFinite(Number(item.watts))).sort((a, b) => Number(a.watts) - Number(b.watts))[0];
+      if (lowest) form.elements.control_low_profile.value = lowest.name;
+    }
+    $("#luxos-profile-result").innerHTML = profiles.length
+      ? `<strong class="good">${profiles.length} native profile${profiles.length === 1 ? "" : "s"} loaded</strong><span>Current: ${escapeHtml(result.current_profile || "not reported")}</span>`
+      : `<strong class="warn">No LuxOS profiles reported</strong><span>Check the miner and try again.</span>`;
+  } finally {
+    button.disabled = false;
+  }
 }
 
 function openPoolDialog(id = null) {
@@ -1077,6 +1169,31 @@ async function revokeHermesToken(button) {
   }
 }
 
+async function runLuxosControl(button) {
+  const minerId = button.dataset.id;
+  const action = button.dataset.controlAction;
+  const board = button.dataset.board;
+  const labels = {
+    low: "enter the selected curtailed mode",
+    full: "resume normal operation at the selected profile ceiling",
+    board_off: `turn hashboard ${Number(board) + 1} off`,
+    board_on: `start hashboard ${Number(board) + 1}`,
+    restart_board: `restart hashboard ${Number(board) + 1}`,
+  };
+  const config = configuredMiner(minerId);
+  if (!config || !confirm(`${labels[action] || action} on “${config.name}”?`)) return;
+  button.disabled = true;
+  try {
+    const body = {action};
+    if (board !== undefined) body.board_id = Number(board);
+    const result = await request(`/api/miners/${encodeURIComponent(minerId)}/control`, {method: "POST", body});
+    toast(result.event?.message || "LuxOS control action completed.", "success");
+    await refresh();
+  } finally {
+    button.disabled = false;
+  }
+}
+
 document.addEventListener("click", async event => {
   if (suppressNextClick || window.getSelection()?.toString()) {
     suppressNextClick = false;
@@ -1111,6 +1228,8 @@ document.addEventListener("click", async event => {
       target.disabled = false;
     }
     if (action === "test-discord") await testDiscord(target);
+    if (action === "load-luxos-profiles") await loadLuxosProfiles(target);
+    if (action === "luxos-control") await runLuxosControl(target);
     if (action === "clear-alerts") await clearRecentAlerts(target);
     if (action === "snooze-alerts") await setAlertSnooze(Number(target.dataset.seconds));
     if (action === "resume-alerts") await resumeAlerts();
@@ -1181,6 +1300,15 @@ $("#miner-form").addEventListener("submit", async event => {
     min_hashrate_ths: nullableNumber(form.elements.min_hashrate_ths.value),
     temp_warning_c: nullableNumber(form.elements.temp_warning_c.value),
     temp_critical_c: nullableNumber(form.elements.temp_critical_c.value),
+    control_enabled: form.elements.control_enabled.checked,
+    control_schedule_enabled: form.elements.control_schedule_enabled.checked,
+    control_low_mode: form.elements.control_low_mode.value,
+    control_low_time: form.elements.control_low_time.value,
+    control_full_time: form.elements.control_full_time.value,
+    control_low_profile: form.elements.control_low_profile.value,
+    control_full_profile: form.elements.control_full_profile.value,
+    auto_recover_hashboards: form.elements.auto_recover_hashboards.checked,
+    chip_health_score_threshold: Number(form.elements.chip_health_score_threshold.value || 90),
   };
   const submit = $('button[type="submit"]', form);
   submit.disabled = true;
@@ -1238,6 +1366,9 @@ $("#settings-form").addEventListener("submit", async event => {
     difficulty_rain_enabled: form.elements.difficulty_rain_enabled.checked,
     dashboard_base_url: form.elements.dashboard_base_url.value || null,
     lan_access_enabled: form.elements.lan_access_enabled.checked,
+    luxos_control_enabled: form.elements.luxos_control_enabled.checked,
+    control_timezone: form.elements.control_timezone.value || "auto",
+    control_utc_offset_minutes: Number(form.elements.control_utc_offset_minutes.value || 0),
     discord_enabled: form.elements.discord_enabled.checked,
     webhook_url: form.elements.webhook_url.value || null,
     clear_webhook: form.elements.clear_webhook.checked,
@@ -1251,6 +1382,7 @@ $("#settings-form").addEventListener("submit", async event => {
     send_pool_alerts: form.elements.send_pool_alerts.checked,
     send_pool_switch_alerts: form.elements.send_pool_switch_alerts.checked,
     send_share_alerts: form.elements.send_share_alerts.checked,
+    send_control_alerts: form.elements.send_control_alerts.checked,
     verbose_pool_events: form.elements.verbose_pool_events.checked,
     hermes_enabled: form.elements.hermes_enabled.checked,
     btc_enabled: form.elements.btc_enabled.checked,
@@ -1289,6 +1421,8 @@ $("#settings-form").addEventListener("submit", async event => {
 });
 
 $("#pool-form").elements.mode.addEventListener("change", syncPoolFields);
+$("#miner-form").elements.type.addEventListener("change", syncLuxosControlFields);
+$("#miner-form").elements.control_low_mode.addEventListener("change", syncLuxosControlFields);
 
 document.addEventListener("pointerdown", event => {
   pointerStart = {x: event.clientX, y: event.clientY};

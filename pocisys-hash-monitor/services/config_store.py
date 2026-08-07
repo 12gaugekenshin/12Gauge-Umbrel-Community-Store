@@ -27,6 +27,9 @@ def normalize_config(value: dict):
     config["hermes"].setdefault("enabled", False)
     config["hermes"].setdefault("token_hash", "")
     config["hermes"].setdefault("token_hint", "")
+    config["app"].setdefault("luxos_control_enabled", False)
+    config["app"].setdefault("control_timezone", "auto")
+    config["app"].setdefault("control_utc_offset_minutes", 0)
     config["odds"].setdefault("auto_network_data", True)
     config["odds"].setdefault("btc_enabled", True)
     config["odds"].setdefault("bch_enabled", True)
@@ -40,6 +43,7 @@ def normalize_config(value: dict):
         "send_hashrate_alerts": True,
         "send_temperature_alerts": True,
         "send_chip_health_alerts": True,
+        "send_control_alerts": True,
         "send_best_diff_alerts": True,
         "send_block_found_alerts": True,
         "send_pool_alerts": True,
@@ -62,6 +66,16 @@ def normalize_config(value: dict):
         miner.pop("expected_hashrate_ths", None)
         miner.pop("hashrate_warning_percent", None)
         miner.pop("fan_min_rpm", None)
+        if str(miner.get("type") or "").lower() == "luxos":
+            miner.setdefault("control_enabled", False)
+            miner.setdefault("control_schedule_enabled", False)
+            miner.setdefault("control_low_mode", "profile")
+            miner.setdefault("control_low_time", "16:00")
+            miner.setdefault("control_full_time", "21:00")
+            miner.setdefault("control_low_profile", "")
+            miner.setdefault("control_full_profile", "")
+            miner.setdefault("auto_recover_hashboards", False)
+            miner.setdefault("chip_health_score_threshold", 90)
     for pool in config["pools"]:
         pool.setdefault("id", make_id("pool"))
         pool.setdefault("mode", "local_log")

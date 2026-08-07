@@ -2,15 +2,28 @@ manifestVersion: 1
 id: pocisys-hash-monitor
 category: bitcoin
 name: PoCiSys Hash Monitor
-version: "1.5.1"
-tagline: One clean dashboard for your SHA-256 miners
+version: "1.6.0"
+tagline: Live SHA-256 fleet monitoring with optional LuxOS control
 icon: https://raw.githubusercontent.com/12gaugekenshin/PoCi-Hash-Monitor/main/pocisys-hash-monitor/icon-v2.png
 description: >-
-  A lightweight, read-only dashboard for AxeOS, NerdAxe-style, and LuxOS
-  miners. See hashrate, temperatures, cooling, shares, pool workers, network
-  data, and block odds in one place. Optional Discord alerts report important
-  changes, while authenticated Hermes MCP access exposes read-only telemetry.
-  The app never changes miner settings and keeps no growing history database.
+  PoCiSys Hash Monitor is a lightweight dashboard built by 12GaugeKenshin for
+  monitoring multiple AxeOS, NerdAxe/NerdQaxe, and LuxOS miners from one
+  place. Monitoring remains read-only by default; optional LuxOS Control Mode
+  can be explicitly armed for selected LuxOS miners.
+
+
+  View live hashrate, temperatures, cooling, share quality, compact best
+  difficulty, chip and hashboard health, self-hosted Public Pool workers, and automatic
+  BTC/BCH/BSV/XEC/DGB/CHTA network data. Configure dashboard-wide Discord alerts for miner
+  outages, recoveries, low hashrate, temperature, pool switches, bad shares,
+  best difficulty, and block events.
+
+
+  Optional LuxOS control uses only existing native profiles and individual
+  hashboard restart/off commands. Other miner types remain read-only. PoCiSys
+  stores only its small config.json file and keeps current telemetry and the
+  latest 25 control actions in bounded memory, with no database or long-term
+  hashrate history. Authenticated Hermes MCP access exposes read-only telemetry.
 developer: PoCiSys
 website: https://pocisys.io/
 submitter: 12gaugekenshin
@@ -22,10 +35,9 @@ gallery:
   - https://raw.githubusercontent.com/12gaugekenshin/PoCi-Hash-Monitor/HEAD/pocisys-hash-monitor/1.png
   - https://raw.githubusercontent.com/12gaugekenshin/PoCi-Hash-Monitor/HEAD/pocisys-hash-monitor/2.png
 releaseNotes: >-
-  Fixes intermittent 502 errors on Umbrel systems that also run Public Pool by
-  routing the app proxy through PoCiSys's unique Docker network alias. Includes
-  authenticated, read-only Hermes MCP access for miner, pool, odds, and
-  container-visible system telemetry.
+  Adds opt-in LuxOS Control Mode with a per-miner profile ceiling, automatic
+  peak-period curtailment, per-hashboard Sleep/wake controls, and separately
+  enabled guarded chip-health recovery. Sleep leaves the controller online.
 dependencies: []
 path: ""
 defaultUsername: ""

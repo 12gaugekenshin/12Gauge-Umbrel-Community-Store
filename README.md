@@ -18,7 +18,7 @@ One Umbrel community store for the PoCiSys local-AI and mining toolkit.
 
 | App | What it does | Main requirement |
 | --- | --- | --- |
-| [PoCiSys Hash Monitor](pocisys-hash-monitor/README.md) | Monitors miners, pools, temperatures, shares, and alerts | Network access to your miners |
+| [PoCiSys Hash Monitor](pocisys-hash-monitor/README.md) | Monitors SHA-256 fleets with optional guarded LuxOS curtailment | Network access to your miners |
 | [PoCiSys Public Pool Port](pocisys-public-pool-port/README.md) | Runs a verified solo-mining pool through your own node | A synchronized Umbrel Bitcoin Node |
 | [PoCiSys GPU Runtime](pocisys-gpu-runtime/README.md) | Runs private Ollama inference on a Tesla P100 | Supported P100 server hardware |
 | [PoCiSys Gateway](pocisys-gateway/README.md) | Measures local-AI requests without storing their text | PoCiSys GPU Runtime |
