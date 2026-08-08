@@ -560,7 +560,8 @@ function luxosControlPanel(config, status) {
   const healthBoards = status?.chip_health?.items || [];
   const boardCount = healthBoards.length;
   const schedule = control.schedule || {};
-  const armed = Boolean(control.armed);
+  const armed = Boolean(control.manual_armed ?? control.armed);
+  const recoveryArmed = Boolean(control.recovery_armed);
   const currentProfile = control.current_profile || status?.current_profile || "Not reported";
   const scheduleText = schedule.enabled
     ? `${schedule.desired === "low" ? "Low / Sleep" : "Full"} now · ${schedule.low_time} low · ${schedule.full_time} wake`
@@ -576,13 +577,14 @@ function luxosControlPanel(config, status) {
   }).join("");
   const actions = (control.recent_actions || []).map(item => `<div class="control-action-row"><span>${appTime(item.time)}</span><strong class="${item.success ? "good" : "bad"}">${escapeHtml(item.action)}</strong><small>${escapeHtml(item.message)}</small></div>`).join("");
   return `<section class="panel luxos-control-panel">
-    <div class="panel-title"><div><h2>LuxOS control</h2><p>Existing profiles and individual hashboards only</p></div><span class="pill ${armed ? "good-border" : "warn-border"}">${armed ? "Armed" : "Read-only"}</span></div>
+    <div class="panel-title"><div><h2>LuxOS control</h2><p>Existing profiles and individual hashboards only</p></div><span class="pill ${armed ? "good-border" : "warn-border"}">${armed ? "Manual armed" : "Manual read-only"}</span></div>
     <div class="control-summary-grid">
       <div><span>Current / ceiling profile</span><strong>${escapeHtml(currentProfile)} / ${escapeHtml(control.normal_profile_ceiling || config.control_full_profile || "Not selected")}</strong></div>
       <div><span>Schedule</span><strong>${escapeHtml(scheduleText)}</strong></div>
+      <div><span>Automatic recovery</span><strong>${recoveryArmed ? "Armed" : "Off"}</strong></div>
       <div><span>Hashboards</span><strong>${boardCount || "Not reported"}</strong></div>
     </div>
-    ${armed ? `<div class="control-primary-actions"><button data-action="luxos-control" data-control-action="low" data-id="${config.id}">${config.control_low_mode === "boards_off" ? "Curtail now - Sleep" : "Curtail now"}</button><button class="primary" data-action="luxos-control" data-control-action="full" data-id="${config.id}">Resume normal operation</button></div>` : `<div class="control-warning compact"><strong>Control is not armed.</strong><span>Enable the dashboard-wide switch in Settings and the per-miner switch under Edit setup. Monitoring remains read-only.</span></div>`}
+    ${armed ? `<div class="control-primary-actions"><button data-action="luxos-control" data-control-action="low" data-id="${config.id}">${config.control_low_mode === "boards_off" ? "Curtail now - Sleep" : "Curtail now"}</button><button class="primary" data-action="luxos-control" data-control-action="full" data-id="${config.id}">Resume normal operation</button></div>` : `<div class="control-warning compact"><strong>Manual controls are not armed.</strong><span>Automatic curtailment and hashboard recovery remain independent and follow their own per-miner switches shown above.</span></div>`}
     <div class="control-board-list">${boardRows || `<div class="empty compact-empty">Hashboard health is waiting for LuxOS.</div>`}</div>
     ${control.health_error ? `<p class="control-error">Health check: ${escapeHtml(control.health_error)}</p>` : ""}
     ${actions ? `<div class="control-actions-log"><h3>Recent bounded actions</h3>${actions}</div>` : ""}

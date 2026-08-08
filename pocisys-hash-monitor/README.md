@@ -36,10 +36,11 @@ bounded memory; there is no growing long-term hashrate database. Miner controls,
 wallet data, and shell access are not exposed through MCP. Recent LuxOS control
 activity is also held in a fixed-size in-memory queue.
 
-## Latest release — v1.6.4
+## Latest release — v1.7.0
 
-Prevents redundant LuxOS profile commands when the selected profile is already
-active, avoiding unnecessary profile resets and fan ramp-ups.
+Separates manual LuxOS control, scheduled curtailment, and automatic hashboard
+recovery per miner. Unknown chips are ignored, and real profile transitions
+start a fresh ten-minute recovery observation window.
 
 Source and support: [PoCiSys Hash Monitor on GitHub](https://github.com/12gaugekenshin/PoCi-Hash-Monitor)
 

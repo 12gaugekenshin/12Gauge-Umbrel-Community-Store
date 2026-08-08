@@ -25,6 +25,10 @@ class UmbrelComposeTests(unittest.TestCase):
         self.assertIn("W setup est.", javascript)
         self.assertIn("W catalog est.", javascript)
         self.assertIn('name="chip_health_score_threshold" type="number" min="0" max="100"', html)
+        self.assertIn("Arm manual LuxOS controls", html)
+        self.assertIn("Arm automatic curtailing schedule", html)
+        self.assertIn("Arm automatic hashboard recovery", html)
+        self.assertIn("Unknown chips are ignored", html)
 
 
 if __name__ == "__main__":

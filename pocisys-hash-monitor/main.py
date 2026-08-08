@@ -32,7 +32,7 @@ from services.system_stats import SystemStatsService
 from services.luxos_control import LuxOSControlError, LuxOSControlService
 
 
-APP_VERSION = "1.6.4"
+APP_VERSION = "1.7.0"
 ROOT = Path(__file__).resolve().parent
 WEB_ROOT = ROOT / "web"
 CONFIG_PATH = Path(os.environ.get("POCISYS_CONFIG_PATH", ROOT / "config.json")).resolve()
@@ -135,9 +135,10 @@ def clean_miner(data):
         full_profile = clean_profile(data.get("control_full_profile"), "normal")
         control_enabled = bool(data.get("control_enabled", False))
         schedule_enabled = bool(data.get("control_schedule_enabled", False))
-        if control_enabled and not full_profile:
+        recovery_enabled = bool(data.get("auto_recover_hashboards", False))
+        if (control_enabled or schedule_enabled) and not full_profile:
             raise ApiError(400, "Select the normal LuxOS profile before enabling miner control")
-        if control_enabled and schedule_enabled and low_mode == "profile" and not low_profile:
+        if schedule_enabled and low_mode == "profile" and not low_profile:
             raise ApiError(400, "Select the low-power LuxOS profile for this schedule")
         cleaned.update(
             control_enabled=control_enabled,
@@ -147,7 +148,7 @@ def clean_miner(data):
             control_full_time=full_time,
             control_low_profile=low_profile,
             control_full_profile=full_profile,
-            auto_recover_hashboards=bool(data.get("auto_recover_hashboards", False)),
+            auto_recover_hashboards=recovery_enabled,
             chip_health_score_threshold=max(0, min(100, as_float(data.get("chip_health_score_threshold"), 90))),
         )
     return cleaned

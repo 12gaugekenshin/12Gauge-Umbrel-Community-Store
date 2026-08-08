@@ -19,6 +19,7 @@ AUTO_RECOVERY_WARMUP_SECONDS = 300
 AUTO_RECOVERY_CONFIRMATIONS = 3
 AUTO_RECOVERY_RESTART_COOLDOWN_SECONDS = 6 * 60 * 60
 AUTO_RECOVERY_POST_RESTART_SECONDS = 10 * 60
+PROFILE_CHANGE_OBSERVATION_SECONDS = 10 * 60
 MAX_HASHBOARDS = 8
 MAX_PROFILES = 64
 MAX_LOW_CHIPS_PER_BOARD = 8
@@ -277,6 +278,7 @@ class LuxOSControlService:
         self.bad_confirmations = {}
         self.last_auto_attempt = {}
         self.auto_suppress_until = {}
+        self.profile_suppress_until = {}
         self.last_action_attempt = {}
         self.last_schedule_target = {}
         self.schedule_retry_after = {}
@@ -362,11 +364,17 @@ class LuxOSControlService:
         miner = self._miner(miner_id)
         snapshot = self.health_cache.get(miner_id, {})
         actions = [event for event in self.recent_actions if event.get("miner_id") == miner_id][:5]
+        manual_enabled = bool(miner and miner.get("control_enabled", False))
+        schedule_enabled = bool(miner and miner.get("control_schedule_enabled", False))
+        recovery_enabled = bool(miner and miner.get("auto_recover_hashboards", False))
         return {
             "available": bool(miner),
             "global_enabled": self._global_enabled(),
-            "miner_enabled": bool(miner and miner.get("control_enabled", False)),
-            "armed": bool(self._global_enabled() and miner and miner.get("control_enabled", False)),
+            "miner_enabled": bool(manual_enabled or schedule_enabled or recovery_enabled),
+            "armed": bool(self._global_enabled() and manual_enabled),
+            "manual_armed": bool(self._global_enabled() and manual_enabled),
+            "schedule_armed": bool(self._global_enabled() and schedule_enabled),
+            "recovery_armed": bool(self._global_enabled() and recovery_enabled),
             "current_profile": snapshot.get("current_profile"),
             "normal_profile_ceiling": miner.get("control_full_profile") if miner else None,
             "health_checked_at": snapshot.get("checked_at"),
@@ -377,6 +385,7 @@ class LuxOSControlService:
                 "health_confirmations": AUTO_RECOVERY_CONFIRMATIONS,
                 "restart_cooldown_seconds": AUTO_RECOVERY_RESTART_COOLDOWN_SECONDS,
                 "post_restart_observation_seconds": AUTO_RECOVERY_POST_RESTART_SECONDS,
+                "profile_change_observation_seconds": PROFILE_CHANGE_OBSERVATION_SECONDS,
                 "normal_profile_is_hard_ceiling": True,
             },
         }
@@ -425,27 +434,31 @@ class LuxOSControlService:
     async def _process_auto_recovery(self, miner, snapshot):
         miner_id = miner.get("id")
         active_keys = set()
+        now = time.monotonic()
+        observing_profile_change = now < self.profile_suppress_until.get(miner_id, 0)
+        recovery_active = bool(
+            self._global_enabled()
+            and miner.get("auto_recover_hashboards", False)
+            and not observing_profile_change
+            and not (miner.get("control_schedule_enabled", False) and self._low_window(miner))
+        )
         for board in snapshot.get("items", []):
             board_id = board.get("board_id")
             if board_id is None:
                 continue
             key = (miner_id, int(board_id))
             active_keys.add(key)
-            if board.get("status") == "warning":
+            if board.get("status") == "warning" and recovery_active:
                 self.bad_confirmations[key] = self.bad_confirmations.get(key, 0) + 1
             else:
                 self.bad_confirmations[key] = 0
 
             if not (
-                self._global_enabled()
-                and miner.get("control_enabled", False)
-                and miner.get("auto_recover_hashboards", False)
+                recovery_active
                 and self.bad_confirmations.get(key, 0) >= AUTO_RECOVERY_CONFIRMATIONS
                 and time.monotonic() - self.started_at >= AUTO_RECOVERY_WARMUP_SECONDS
-                and not (miner.get("control_schedule_enabled", False) and self._low_window(miner))
             ):
                 continue
-            now = time.monotonic()
             if now < self.auto_suppress_until.get(key, 0):
                 continue
             if now - self.last_auto_attempt.get(key, -AUTO_RECOVERY_RESTART_COOLDOWN_SECONDS) < AUTO_RECOVERY_RESTART_COOLDOWN_SECONDS:
@@ -461,6 +474,13 @@ class LuxOSControlService:
         for key in list(self.bad_confirmations):
             if key[0] == miner_id and key not in active_keys:
                 self.bad_confirmations.pop(key, None)
+
+    def _observe_after_profile_change(self, miner_id):
+        now = time.monotonic()
+        self.profile_suppress_until[miner_id] = now + PROFILE_CHANGE_OBSERVATION_SECONDS
+        for key in list(self.bad_confirmations):
+            if key[0] == miner_id:
+                self.bad_confirmations[key] = 0
 
     async def _record_action(self, miner, action, success, message, source):
         event = {
@@ -541,7 +561,9 @@ class LuxOSControlService:
             return f"Native LuxOS profile {profile} is already active; no profile command was sent."
         timeout = self.config.get("app", {}).get("request_timeout_seconds", 4)
         await asyncio.to_thread(LuxOSClient(miner["ip"], timeout).set_profile, profile)
-        self.health_cache.setdefault(miner.get("id"), {})["current_profile"] = profile
+        miner_id = miner.get("id")
+        self.health_cache.setdefault(miner_id, {})["current_profile"] = profile
+        self._observe_after_profile_change(miner_id)
         return f"Applied native LuxOS profile {profile}."
 
     async def _restore_full(self, miner):
@@ -554,6 +576,7 @@ class LuxOSControlService:
             board_count = await asyncio.to_thread(client.board_count)
             message = await self._set_profile(miner, full_profile, "full")
             await asyncio.to_thread(client.set_boards, list(range(board_count)), 10)
+            self._observe_after_profile_change(miner.get("id"))
             return f"All {board_count} hashboards were scheduled to start. {message}"
         return await self._set_profile(miner, full_profile, "full")
 
@@ -563,8 +586,17 @@ class LuxOSControlService:
             raise LuxOSControlError("Enabled LuxOS miner not found")
         if not self._global_enabled():
             raise LuxOSControlError("Enable LuxOS Control Mode in Settings first")
-        if not miner.get("control_enabled", False):
-            raise LuxOSControlError("Enable control for this LuxOS miner first")
+        if source == "automatic chip recovery":
+            if not miner.get("auto_recover_hashboards", False):
+                raise LuxOSControlError("Arm automatic hashboard recovery for this miner first")
+        elif source == "daily LuxOS schedule":
+            if not miner.get("control_schedule_enabled", False):
+                raise LuxOSControlError("Arm automatic curtailing for this miner first")
+        elif source == "Normal Operating Profile ceiling":
+            if not miner.get("control_enabled", False):
+                raise LuxOSControlError("Arm manual LuxOS controls for this miner first")
+        elif not miner.get("control_enabled", False):
+            raise LuxOSControlError("Arm manual LuxOS controls for this miner first")
         now = time.monotonic()
         if now - self.last_action_attempt.get(miner_id, -CONTROL_ACTION_COOLDOWN_SECONDS) < CONTROL_ACTION_COOLDOWN_SECONDS:
             raise LuxOSControlError("Wait a few seconds before sending another control action")
@@ -584,6 +616,8 @@ class LuxOSControlService:
                     if board_id >= board_count:
                         raise LuxOSControlError("LuxOS did not report that hashboard")
                     await asyncio.to_thread(client.restart_board, board_id)
+                    self.auto_suppress_until[(miner_id, board_id)] = time.monotonic() + AUTO_RECOVERY_POST_RESTART_SECONDS
+                    self.bad_confirmations[(miner_id, board_id)] = 0
                     message = f"Hashboard {board_id + 1} restart scheduled with a 10-second board delay."
                 elif action == "board_off":
                     board_id = int(board_id)
@@ -602,6 +636,8 @@ class LuxOSControlService:
                     if board_id >= board_count:
                         raise LuxOSControlError("LuxOS did not report that hashboard")
                     await asyncio.to_thread(client.restart_board, board_id, 10)
+                    self.auto_suppress_until[(miner_id, board_id)] = time.monotonic() + AUTO_RECOVERY_POST_RESTART_SECONDS
+                    self.bad_confirmations[(miner_id, board_id)] = 0
                     message = f"Hashboard {board_id + 1} was scheduled to start in 10 seconds."
                 elif action == "low":
                     if miner.get("control_low_mode", "profile") == "boards_off":
@@ -630,10 +666,12 @@ class LuxOSControlService:
             return
         now = time.monotonic()
         for miner in self._miners():
-            if not miner.get("control_enabled", False):
+            if not (miner.get("control_enabled", False) or miner.get("control_schedule_enabled", False)):
                 continue
             miner_id = miner.get("id")
             if not miner.get("control_schedule_enabled", False):
+                if not miner.get("control_enabled", False):
+                    continue
                 if now < self.ceiling_retry_after.get(miner_id, 0):
                     continue
                 current_profile = self.health_cache.get(miner_id, {}).get("current_profile")
@@ -692,6 +730,7 @@ class LuxOSControlService:
             self.last_schedule_target,
             self.schedule_retry_after,
             self.ceiling_retry_after,
+            self.profile_suppress_until,
             self.locks,
         ):
             for key in list(mapping):

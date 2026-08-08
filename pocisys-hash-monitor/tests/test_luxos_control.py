@@ -20,6 +20,17 @@ class RecordingClient(LuxOSClient):
 
 
 class LuxOSClientTests(unittest.TestCase):
+    def test_unknown_chip_is_not_treated_as_unhealthy(self):
+        client = RecordingClient([
+            {"ASCS": [{"Count": 1}]},
+            {"CHIPS": [{"Chip": 0, "Healthy": "Unknown", "Score": 10}]},
+            {"CONFIG": [{"Profile": "Loki"}]},
+        ])
+        result = client.chip_health(90)
+        self.assertEqual(result["items"][0]["status"], "healthy")
+        self.assertEqual(result["items"][0]["low_chip_count"], 0)
+        self.assertEqual(result["items"][0]["chips_unknown"], 1)
+
     def test_profiles_adjust_catalog_power_to_the_current_setup(self):
         client = RecordingClient([
             {"PROFILES": [
@@ -196,6 +207,70 @@ class LuxOSControlServiceTests(unittest.IsolatedAsyncioTestCase):
             await service._evaluate_schedules()
         self.assertNotIn(("set_profile", "normal"), FakeControlClient.timeline)
         self.assertEqual(service.last_schedule_target["miner_1"], "full")
+
+    async def test_schedule_is_independent_of_manual_controls(self):
+        config = control_config(low_mode="profile")
+        config["miners"][0]["control_enabled"] = False
+        config["miners"][0]["control_schedule_enabled"] = True
+        service = LuxOSControlService(config, FakeAlerts())
+        service.health_cache["miner_1"] = {"current_profile": "normal"}
+        with (
+            patch.object(service, "_desired_target", return_value="low"),
+            patch("services.luxos_control.LuxOSClient", FakeControlClient),
+        ):
+            await service._evaluate_schedules()
+        self.assertIn(("set_profile", "low"), FakeControlClient.timeline)
+
+    async def test_recovery_is_independent_of_manual_and_schedule_controls(self):
+        config = control_config()
+        miner = config["miners"][0]
+        miner["control_enabled"] = False
+        miner["control_schedule_enabled"] = False
+        miner["auto_recover_hashboards"] = True
+        service = LuxOSControlService(config, FakeAlerts())
+        service.started_at = time.monotonic() - 600
+        snapshot = FakeControlClient("miner.test").chip_health(90)
+        with patch("services.luxos_control.LuxOSClient", FakeControlClient):
+            await service._process_auto_recovery(miner, snapshot)
+            await service._process_auto_recovery(miner, snapshot)
+            await service._process_auto_recovery(miner, snapshot)
+        self.assertIn(("restart_board", 0, 10), FakeControlClient.timeline)
+
+    async def test_recovery_requires_three_fresh_readings_after_being_armed(self):
+        config = control_config()
+        miner = config["miners"][0]
+        miner["control_enabled"] = False
+        miner["auto_recover_hashboards"] = False
+        service = LuxOSControlService(config, FakeAlerts())
+        service.started_at = time.monotonic() - 600
+        snapshot = FakeControlClient("miner.test").chip_health(90)
+        with patch("services.luxos_control.LuxOSClient", FakeControlClient):
+            await service._process_auto_recovery(miner, snapshot)
+            await service._process_auto_recovery(miner, snapshot)
+            await service._process_auto_recovery(miner, snapshot)
+            self.assertEqual(service.bad_confirmations[("miner_1", 0)], 0)
+            miner["auto_recover_hashboards"] = True
+            await service._process_auto_recovery(miner, snapshot)
+            await service._process_auto_recovery(miner, snapshot)
+            self.assertNotIn(("restart_board", 0, 10), FakeControlClient.timeline)
+            await service._process_auto_recovery(miner, snapshot)
+        self.assertIn(("restart_board", 0, 10), FakeControlClient.timeline)
+
+    async def test_profile_change_starts_fresh_recovery_observation_window(self):
+        config = control_config(low_mode="profile")
+        miner = config["miners"][0]
+        miner["auto_recover_hashboards"] = True
+        service = LuxOSControlService(config, FakeAlerts())
+        service.started_at = time.monotonic() - 600
+        with patch("services.luxos_control.LuxOSClient", FakeControlClient):
+            await service.execute("miner_1", "low")
+            snapshot = FakeControlClient("miner.test").chip_health(90)
+            await service._process_auto_recovery(miner, snapshot)
+            await service._process_auto_recovery(miner, snapshot)
+            await service._process_auto_recovery(miner, snapshot)
+        self.assertIn(("set_profile", "low"), FakeControlClient.timeline)
+        self.assertNotIn(("restart_board", 0, 10), FakeControlClient.timeline)
+        self.assertEqual(service.bad_confirmations[("miner_1", 0)], 0)
 
     async def test_curtailed_profile_cannot_exceed_normal_ceiling(self):
         config = control_config(low_mode="profile")

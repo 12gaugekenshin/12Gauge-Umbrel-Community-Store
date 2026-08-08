@@ -64,7 +64,7 @@ class HttpIntegrationTests(unittest.TestCase):
     def test_token_auth_and_mcp_tools_over_http(self):
         status, health = self.request("/health")
         self.assertEqual(status, 200)
-        self.assertEqual(health["version"], "1.6.4")
+        self.assertEqual(health["version"], "1.7.0")
 
         _, generated = self.request("/api/hermes/token", method="POST", body={})
         token = generated["token"]
@@ -134,6 +134,19 @@ class HttpIntegrationTests(unittest.TestCase):
             "chip_health_score_threshold": 0,
         })["chip_health_score_threshold"]
         self.assertEqual(miner["chip_health_score_threshold"], 0)
+
+    def test_recovery_only_does_not_require_curtailment_profiles(self):
+        miner = self.app.clean_miner({
+            "name": "Recovery-only LuxOS miner",
+            "ip": "192.0.2.11",
+            "type": "luxos",
+            "control_enabled": False,
+            "control_schedule_enabled": False,
+            "auto_recover_hashboards": True,
+        })
+        self.assertFalse(miner["control_enabled"])
+        self.assertFalse(miner["control_schedule_enabled"])
+        self.assertTrue(miner["auto_recover_hashboards"])
 
 
 if __name__ == "__main__":
