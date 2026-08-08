@@ -221,10 +221,11 @@ class LuxOSClient:
                 )
             )
             total = len(chips)
+            board_status = "warning" if low_count else ("healthy" if known_count > 0 else "unknown")
             items.append({
                 "board_id": board_id,
                 "name": f"Hashboard {board_id + 1}",
-                "status": "warning" if low_count else "healthy",
+                "status": board_status,
                 "chips_healthy": max(0, total - low_count),
                 "chips_total": total,
                 "chips_unknown": unknown_count,
@@ -278,6 +279,7 @@ class LuxOSControlService:
         self.bad_confirmations = {}
         self.last_auto_attempt = {}
         self.auto_suppress_until = {}
+        self.recovery_incidents = {}
         self.profile_suppress_until = {}
         self.last_action_attempt = {}
         self.last_schedule_target = {}
@@ -367,6 +369,17 @@ class LuxOSControlService:
         manual_enabled = bool(miner and miner.get("control_enabled", False))
         schedule_enabled = bool(miner and miner.get("control_schedule_enabled", False))
         recovery_enabled = bool(miner and miner.get("auto_recover_hashboards", False))
+        now = time.monotonic()
+        recovery_pending = any(
+            key[0] == miner_id and count > 0
+            for key, count in self.bad_confirmations.items()
+        )
+        recovery_observing = any(
+            key[0] == miner_id and (
+                key in self.recovery_incidents or now < self.auto_suppress_until.get(key, 0)
+            )
+            for key in set(self.auto_suppress_until) | set(self.recovery_incidents)
+        )
         return {
             "available": bool(miner),
             "global_enabled": self._global_enabled(),
@@ -375,6 +388,8 @@ class LuxOSControlService:
             "manual_armed": bool(self._global_enabled() and manual_enabled),
             "schedule_armed": bool(self._global_enabled() and schedule_enabled),
             "recovery_armed": bool(self._global_enabled() and recovery_enabled),
+            "recovery_pending": recovery_pending,
+            "recovery_observing": recovery_observing,
             "current_profile": snapshot.get("current_profile"),
             "normal_profile_ceiling": miner.get("control_full_profile") if miner else None,
             "health_checked_at": snapshot.get("checked_at"),
@@ -448,6 +463,32 @@ class LuxOSControlService:
                 continue
             key = (miner_id, int(board_id))
             active_keys.add(key)
+            incident = self.recovery_incidents.get(key)
+            if incident:
+                self.bad_confirmations[key] = 0
+                if now < incident["observe_until"] or board.get("status") == "unknown":
+                    continue
+                healthy = board.get("status") == "healthy"
+                if self.config.get("discord", {}).get("send_chip_health_alerts", True):
+                    title = "LuxOS Hashboard Recovered" if healthy else "WARN LuxOS Hashboard Still Unhealthy"
+                    detail = (
+                        "LuxOS now reports known healthy chip status. Routine low-hashrate, pool, and recovery "
+                        "alerts caused by the controlled restart were suppressed."
+                        if healthy else
+                        "LuxOS still reports degraded chip health after the restart observation period. "
+                        "The fixed six-hour board cooldown remains active to prevent a restart loop."
+                    )
+                    await self.alerts.emit(
+                        f"{miner_id}:auto-recovery:{board_id}:complete",
+                        title,
+                        f"{miner.get('name')}\nHashboard {int(board_id) + 1} restart completed.\n{detail}",
+                        "success" if healthy else "warning",
+                        miner.get("name"),
+                        force=True,
+                        url=self.alerts.dashboard_link(f"/miners/{miner_id}"),
+                    )
+                self.recovery_incidents.pop(key, None)
+                continue
             if board.get("status") == "warning" and recovery_active:
                 self.bad_confirmations[key] = self.bad_confirmations.get(key, 0) + 1
             else:
@@ -463,13 +504,46 @@ class LuxOSControlService:
                 continue
             if now - self.last_auto_attempt.get(key, -AUTO_RECOVERY_RESTART_COOLDOWN_SECONDS) < AUTO_RECOVERY_RESTART_COOLDOWN_SECONDS:
                 continue
+            # Count the attempt before any network write so a failed command
+            # cannot create a retry/Discord loop on subsequent health polls.
+            self.last_auto_attempt[key] = now
             try:
+                if self.config.get("discord", {}).get("send_chip_health_alerts", True):
+                    low_count = int(board.get("low_chip_count") or 0)
+                    minimum = board.get("minimum_score")
+                    score_line = f"\nLowest chip score: {minimum:g}/100" if isinstance(minimum, (int, float)) else ""
+                    await self.alerts.emit(
+                        f"{miner_id}:auto-recovery:{board_id}:detected",
+                        "WARN LuxOS Hashboard Unhealthy",
+                        (
+                            f"{miner.get('name')}\nHashboard {int(board_id) + 1} remained unhealthy for "
+                            f"{AUTO_RECOVERY_CONFIRMATIONS} checks.\nAffected chips: {low_count}{score_line}\n"
+                            "PoCiSys will restart only this hashboard and observe it before reporting the outcome."
+                        ),
+                        "warning",
+                        miner.get("name"),
+                        force=True,
+                        url=self.alerts.dashboard_link(f"/miners/{miner_id}"),
+                    )
                 await self.execute(miner_id, "restart_board", board_id=board_id, source="automatic chip recovery")
-                self.last_auto_attempt[key] = now
                 self.auto_suppress_until[key] = now + AUTO_RECOVERY_POST_RESTART_SECONDS
+                self.recovery_incidents[key] = {
+                    "started_at": now,
+                    "observe_until": now + AUTO_RECOVERY_POST_RESTART_SECONDS,
+                }
                 self.bad_confirmations[key] = 0
-            except Exception:
+            except Exception as exc:
                 self.auto_suppress_until[key] = now + HEALTH_INTERVAL_SECONDS
+                if self.config.get("discord", {}).get("send_chip_health_alerts", True):
+                    await self.alerts.emit(
+                        f"{miner_id}:auto-recovery:{board_id}:failed",
+                        "WARN LuxOS Hashboard Restart Failed",
+                        f"{miner.get('name')}\nHashboard {int(board_id) + 1}\n{str(exc)[:240]}",
+                        "warning",
+                        miner.get("name"),
+                        force=True,
+                        url=self.alerts.dashboard_link(f"/miners/{miner_id}"),
+                    )
 
         for key in list(self.bad_confirmations):
             if key[0] == miner_id and key not in active_keys:
@@ -493,7 +567,10 @@ class LuxOSControlService:
             "message": str(message)[:300],
         }
         self.recent_actions.appendleft(event)
-        if self.config.get("discord", {}).get("send_control_alerts", True):
+        if (
+            source != "automatic chip recovery"
+            and self.config.get("discord", {}).get("send_control_alerts", True)
+        ):
             title = "LuxOS Control Action" if success else "WARN LuxOS Control Failed"
             await self.alerts.emit(
                 f"{miner.get('id')}:control:{action}:{'ok' if success else 'failed'}",
@@ -736,7 +813,12 @@ class LuxOSControlService:
             for key in list(mapping):
                 if key not in valid_ids:
                     mapping.pop(key, None)
-        for mapping in (self.bad_confirmations, self.last_auto_attempt, self.auto_suppress_until):
+        for mapping in (
+            self.bad_confirmations,
+            self.last_auto_attempt,
+            self.auto_suppress_until,
+            self.recovery_incidents,
+        ):
             for key in list(mapping):
                 if key[0] not in valid_ids:
                     mapping.pop(key, None)

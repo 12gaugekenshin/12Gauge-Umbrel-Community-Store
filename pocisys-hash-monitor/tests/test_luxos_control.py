@@ -27,7 +27,7 @@ class LuxOSClientTests(unittest.TestCase):
             {"CONFIG": [{"Profile": "Loki"}]},
         ])
         result = client.chip_health(90)
-        self.assertEqual(result["items"][0]["status"], "healthy")
+        self.assertEqual(result["items"][0]["status"], "unknown")
         self.assertEqual(result["items"][0]["low_chip_count"], 0)
         self.assertEqual(result["items"][0]["chips_unknown"], 1)
 
@@ -334,6 +334,56 @@ class LuxOSControlServiceTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn(("restart_board", 1, 10), calls)
         self.assertNotIn(("restart_board", 2, 10), calls)
         self.assertLessEqual(len(service.recent_actions), 25)
+
+    async def test_temporary_chip_warning_recovers_without_restart_or_alert(self):
+        config = control_config()
+        config["miners"][0]["auto_recover_hashboards"] = True
+        alerts = FakeAlerts()
+        service = LuxOSControlService(config, alerts)
+        service.started_at = time.monotonic() - 600
+        warning = FakeControlClient("miner.test").chip_health(90)
+        healthy = {
+            **warning,
+            "healthy": 3,
+            "items": [
+                {**item, "status": "healthy", "low_chip_count": 0}
+                for item in warning["items"]
+            ],
+        }
+        with patch("services.luxos_control.LuxOSClient", FakeControlClient):
+            await service._process_auto_recovery(config["miners"][0], warning)
+            await service._process_auto_recovery(config["miners"][0], warning)
+            await service._process_auto_recovery(config["miners"][0], healthy)
+        self.assertNotIn(("restart_board", 0, 10), FakeControlClient.timeline)
+        self.assertEqual(alerts.events, [])
+
+    async def test_automatic_recovery_sends_detected_then_one_known_outcome(self):
+        config = control_config()
+        config["miners"][0]["auto_recover_hashboards"] = True
+        alerts = FakeAlerts()
+        service = LuxOSControlService(config, alerts)
+        service.started_at = time.monotonic() - 600
+        warning = FakeControlClient("miner.test").chip_health(90)
+        healthy = {
+            **warning,
+            "healthy": 3,
+            "items": [
+                {**item, "status": "healthy", "low_chip_count": 0}
+                for item in warning["items"]
+            ],
+        }
+        with patch("services.luxos_control.LuxOSClient", FakeControlClient):
+            for _ in range(3):
+                await service._process_auto_recovery(config["miners"][0], warning)
+            self.assertEqual(len(alerts.events), 1)
+            self.assertEqual(alerts.events[0][0][1], "WARN LuxOS Hashboard Unhealthy")
+            incident = service.recovery_incidents[("miner_1", 0)]
+            incident["observe_until"] = time.monotonic() - 1
+            service.auto_suppress_until[("miner_1", 0)] = time.monotonic() - 1
+            await service._process_auto_recovery(config["miners"][0], healthy)
+        self.assertEqual(len(alerts.events), 2)
+        self.assertEqual(alerts.events[1][0][1], "LuxOS Hashboard Recovered")
+        self.assertNotIn(("miner_1", 0), service.recovery_incidents)
 
     async def test_zero_health_threshold_is_not_replaced_by_default(self):
         config = control_config()

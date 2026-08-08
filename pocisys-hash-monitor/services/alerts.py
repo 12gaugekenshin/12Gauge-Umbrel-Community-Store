@@ -129,6 +129,13 @@ class AlertEngine:
         offline_since = None
         offline_alerted = False
         miner_type = str(status.get("type") or miner_config.get("type") or "").strip().lower()
+        luxos_control = status.get("luxos_control") or {}
+        recovery_managed = bool(miner_type == "luxos" and luxos_control.get("recovery_armed"))
+        recovery_noise_suppressed = bool(
+            recovery_managed
+            and (luxos_control.get("recovery_pending") or luxos_control.get("recovery_observing"))
+        )
+        chip_state = None
         offline_grace = max(
             self.offline_grace,
             NERDQAXE_OFFLINE_GRACE_SECONDS if miner_type in {"nerdaxe", "nerdqaxe"} else 0,
@@ -157,7 +164,13 @@ class AlertEngine:
                     url=miner_url,
                 )
                 offline_alerted = offline_alerted or sent
-        elif prior is not None and not prior.get("online") and prior.get("offline_alerted") and discord.get("send_recovery_alerts", True):
+        elif (
+            prior is not None
+            and not prior.get("online")
+            and prior.get("offline_alerted")
+            and discord.get("send_recovery_alerts", True)
+            and not recovery_noise_suppressed
+        ):
             await self.emit(
                 f"{miner_key}:recovered", "Miner Recovered", f"{ip_line}\nAPI: healthy",
                 "success", name, True, miner_url,
@@ -175,7 +188,7 @@ class AlertEngine:
                 threshold_source = "75% of device-reported expected"
             if hashrate is not None and threshold and hashrate < threshold:
                 status["warnings"].append("Hashrate below threshold")
-                if discord.get("send_hashrate_alerts", True):
+                if discord.get("send_hashrate_alerts", True) and not recovery_noise_suppressed:
                     await self.emit(
                         f"{miner_key}:hashrate",
                         "WARN Hashrate Low",
@@ -208,19 +221,19 @@ class AlertEngine:
             chip_health = status.get("chip_health") or {}
             chip_items = chip_health.get("items") or []
             chip_health_reported = bool(chip_health.get("reported") and chip_items)
-            chip_health_degraded = chip_health_reported and (
-                any(str(item.get("status") or "").lower() != "healthy" for item in chip_items)
-                or (
-                    chip_health.get("healthy") is not None
-                    and chip_health.get("total") is not None
-                    and chip_health.get("healthy") < chip_health.get("total")
-                )
-            )
+            item_states = {str(item.get("status") or "unknown").lower() for item in chip_items}
+            if chip_health_reported and "warning" in item_states:
+                chip_state = "degraded"
+            elif chip_health_reported and item_states and item_states == {"healthy"}:
+                chip_state = "healthy"
+            if chip_state == "degraded":
+                status["warnings"].append("LuxOS chip health degraded")
             previous_chip_degraded = prior.get("chip_health_degraded") if prior else False
             if (
                 miner_type == "luxos"
-                and chip_health_degraded
+                and chip_state == "degraded"
                 and not previous_chip_degraded
+                and not recovery_managed
                 and discord.get("send_chip_health_alerts", True)
             ):
                 affected = []
@@ -232,7 +245,6 @@ class AlertEngine:
                     count = f" ({healthy}/{total} ASICs)" if healthy is not None and total is not None else ""
                     affected.append(f"{item.get('name') or 'Hashboard'}: {item.get('status') or 'warning'}{count}")
                 detail = "\n".join(affected[:8]) or "LuxOS reported fewer healthy hashboards than expected."
-                status["warnings"].append("LuxOS chip health degraded")
                 await self.emit(
                     f"{miner_key}:chip-health",
                     "WARN LuxOS Chip Health Low",
@@ -241,9 +253,9 @@ class AlertEngine:
                 )
             elif (
                 miner_type == "luxos"
-                and chip_health_reported
-                and not chip_health_degraded
+                and chip_state == "healthy"
                 and previous_chip_degraded
+                and not recovery_managed
                 and discord.get("send_chip_health_alerts", True)
                 and discord.get("send_recovery_alerts", True)
             ):
@@ -258,7 +270,7 @@ class AlertEngine:
             pool_identity = (pool.get("url"), pool.get("source"))
             if pool.get("connected") is False:
                 status["warnings"].append("Pool disconnected")
-                if discord.get("send_pool_alerts", True):
+                if discord.get("send_pool_alerts", True) and not recovery_noise_suppressed:
                     await self.emit(
                         f"{miner_key}:pool", "ALERT Pool Disconnected",
                         f"{name}\nPool: {pool.get('url') or 'unknown'}",
@@ -270,6 +282,7 @@ class AlertEngine:
                 and pool_identity[0]
                 and pool_identity != prior.get("pool_identity")
                 and discord.get("send_pool_switch_alerts", True)
+                and not recovery_noise_suppressed
             ):
                 old_pool = prior["pool_identity"][0]
                 await self.emit(
@@ -286,7 +299,7 @@ class AlertEngine:
                     max(0, shares.get(key, 0) - old_shares.get(key, 0))
                     for key in ("invalid", "stale", "rejected")
                 )
-                if increase and discord.get("send_share_alerts", True):
+                if increase and discord.get("send_share_alerts", True) and not recovery_noise_suppressed:
                     await self.emit(
                         f"{miner_key}:shares", "WARN Bad Shares Increased",
                         f"{name}\nNew invalid/stale/rejected: {increase}",
@@ -325,21 +338,12 @@ class AlertEngine:
             "blocks_found": int(status.get("blocks_found") or 0),
             "offline_since": offline_since,
             "offline_alerted": offline_alerted,
-            "chip_health_degraded": bool(
-                online
-                and status.get("chip_health", {}).get("reported")
-                and (
-                    any(
-                        str(item.get("status") or "").lower() != "healthy"
-                        for item in status.get("chip_health", {}).get("items", [])
-                    )
-                    or (
-                        status.get("chip_health", {}).get("healthy") is not None
-                        and status.get("chip_health", {}).get("total") is not None
-                        and status.get("chip_health", {}).get("healthy")
-                        < status.get("chip_health", {}).get("total")
-                    )
-                )
+            # Unknown LuxOS chip states are transitional, not a recovery. Keep
+            # the last known state until LuxOS reports a known result.
+            "chip_health_degraded": (
+                chip_state == "degraded"
+                if chip_state in {"degraded", "healthy"}
+                else bool(prior.get("chip_health_degraded")) if prior else False
             ),
         }
 

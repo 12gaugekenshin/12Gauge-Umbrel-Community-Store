@@ -262,17 +262,30 @@
         <div class="form-section luxos-control-fields" hidden>
           <div class="control-section-head"><div><h3>LuxOS control (optional)</h3><p class="form-help">Uses only this miner's existing native LuxOS profiles and per-hashboard actions.</p></div><button type="button" data-action="load-luxos-profiles">Load profiles</button></div>
           <div id="luxos-profile-result" class="test-result"></div>
-          <label class="switch-row enabled-row"><span><strong>Arm manual LuxOS controls</strong><small>Allows the manual profile and per-hashboard buttons for this miner. Automatic curtailment and recovery are armed separately below. The dashboard-wide master switch governs all three.</small></span><input name="control_enabled" type="checkbox" role="switch"></label>
-          <div class="form-grid two">
-            <label><span>Normal Operating Profile</span><select name="control_full_profile"><option value="">Load profiles to choose…</option></select><small>Hard ceiling. PoCiSys will never command a profile above this selection.</small></label>
-            <label class="luxos-low-profile-field"><span>Curtailed profile</span><select name="control_low_profile"><option value="">Load profiles to choose…</option></select></label>
-            <label><span>Curtailment behavior</span><select name="control_low_mode"><option value="profile">Apply curtailed profile</option><option value="boards_off">Sleep - turn every hashboard off</option></select><small>Sleep never calls LuxOS whole-miner curtail. The controller stays online.</small></label>
-            <label><span>Chip health score threshold</span><div class="input-unit"><input name="chip_health_score_threshold" type="number" min="0" max="100" step="1"><em>/ 100</em></div><small>A chip below this score counts as degraded even when LuxOS still labels it Healthy. Lower this for older hardware with a stable reduced baseline. Set 0 to react only when LuxOS explicitly marks a chip unhealthy.</small></label>
-            <label><span>Peak period starts</span><input name="control_low_time" type="time"><small>Automatically curtail at this local time.</small></label>
-            <label><span>Normal operation resumes</span><input name="control_full_time" type="time"><small>Wake boards and restore the Normal Operating Profile.</small></label>
+          <div class="luxos-feature-block">
+            <div class="luxos-feature-head"><p class="eyebrow">Manual access</p><h3>Profile &amp; hashboard controls</h3></div>
+            <label class="switch-row enabled-row"><span><strong>Arm manual LuxOS controls</strong><small>Allows the manual profile and per-hashboard buttons for this miner. The dashboard-wide master switch must also be enabled.</small></span><input name="control_enabled" type="checkbox" role="switch"></label>
+            <div class="form-grid two">
+              <label><span>Normal Operating Profile</span><select name="control_full_profile"><option value="">Load profiles to choose…</option></select><small>Hard ceiling. PoCiSys will never command a profile above this selection.</small></label>
+            </div>
           </div>
-          <label class="switch-row enabled-row"><span><strong>Arm automatic curtailing schedule</strong><small>Independent of manual controls. During the peak period, apply the curtailed profile or Sleep. Outside it, restore the Normal Operating Profile and start the boards.</small></span><input name="control_schedule_enabled" type="checkbox" role="switch"></label>
-          <label class="switch-row enabled-row"><span><strong>Arm automatic hashboard recovery</strong><small>Independent of curtailment and manual controls. Unknown chips are ignored. After any profile change, PoCiSys observes for ten minutes, then requires three consecutive below-threshold or explicitly unhealthy readings before restarting only the affected board. A fixed six-hour board cooldown prevents loops.</small></span><input name="auto_recover_hashboards" type="checkbox" role="switch"></label>
+          <div class="luxos-feature-block">
+            <div class="luxos-feature-head"><p class="eyebrow">Power schedule</p><h3>Curtailment</h3><p class="form-help">Optional timed profile changes or per-hashboard sleep. Independent of chip recovery.</p></div>
+            <div class="form-grid two">
+              <label class="luxos-low-profile-field"><span>Curtailed profile</span><select name="control_low_profile"><option value="">Load profiles to choose…</option></select></label>
+              <label><span>Curtailment behavior</span><select name="control_low_mode"><option value="profile">Apply curtailed profile</option><option value="boards_off">Sleep - turn every hashboard off</option></select><small>Sleep never calls LuxOS whole-miner curtail. The controller stays online.</small></label>
+              <label><span>Peak period starts</span><input name="control_low_time" type="time"><small>Automatically curtail at this local time.</small></label>
+              <label><span>Normal operation resumes</span><input name="control_full_time" type="time"><small>Wake boards and restore the Normal Operating Profile.</small></label>
+            </div>
+            <label class="switch-row enabled-row"><span><strong>Arm automatic curtailing schedule</strong><small>During the peak period, apply the curtailed profile or Sleep. Outside it, restore the Normal Operating Profile and start the boards.</small></span><input name="control_schedule_enabled" type="checkbox" role="switch"></label>
+          </div>
+          <div class="luxos-feature-block">
+            <div class="luxos-feature-head"><p class="eyebrow">ASIC protection</p><h3>Hashboard health &amp; recovery</h3><p class="form-help">Independent of manual controls and the curtailment schedule.</p></div>
+            <div class="form-grid two">
+              <label><span>Chip health score threshold</span><div class="input-unit"><input name="chip_health_score_threshold" type="number" min="0" max="100" step="1"><em>/ 100</em></div><small>A known chip below this score counts as degraded even when LuxOS labels it Healthy. Set 0 to react only when LuxOS explicitly marks a chip unhealthy.</small></label>
+            </div>
+            <label class="switch-row enabled-row"><span><strong>Arm automatic hashboard recovery</strong><small>Unknown chips and brief warnings are ignored. Three consecutive known unhealthy readings trigger one alert and restart only the affected board. PoCiSys then observes for ten minutes and sends one outcome alert. Routine restart noise is suppressed, and a fixed six-hour board cooldown prevents loops.</small></span><input name="auto_recover_hashboards" type="checkbox" role="switch"></label>
+          </div>
           <div class="control-warning compact"><strong>Emergency restore is best effort.</strong><span>PoCiSys restores the selected normal profile and starts boards when it can communicate with LuxOS. If Umbrel, PoCiSys, or the miner is unreachable, no controller can issue that command until communication returns.</span></div>
         </div>
         <label class="switch-row enabled-row"><span><strong>Enable monitoring</strong><small>Disabled miners stay configured but are not polled.</small></span><input name="enabled" type="checkbox" role="switch" checked></label>

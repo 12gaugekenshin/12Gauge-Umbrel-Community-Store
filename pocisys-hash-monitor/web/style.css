@@ -477,6 +477,12 @@ td small { display: block; color: var(--muted); }
 .control-warning.compact { margin: 12px 0; }
 .control-section-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .control-section-head h3 { margin-bottom: 3px; }
+.luxos-feature-block { margin-top: 16px; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: rgba(15, 26, 39, .52); }
+.luxos-feature-block + .luxos-feature-block { margin-top: 14px; }
+.luxos-feature-head { margin-bottom: 12px; }
+.luxos-feature-head .eyebrow { margin: 0 0 4px; }
+.luxos-feature-head h3 { margin: 0 0 4px; font-size: 15px; }
+.luxos-feature-block .switch-row { margin-bottom: 0; }
 .luxos-control-panel { grid-column: 1 / -1; }
 .luxos-control-panel .panel-title > div p { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
 .control-summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin-bottom: 12px; }

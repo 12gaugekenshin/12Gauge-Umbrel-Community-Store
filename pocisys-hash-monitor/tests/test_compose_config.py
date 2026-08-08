@@ -28,7 +28,7 @@ class UmbrelComposeTests(unittest.TestCase):
         self.assertIn("Arm manual LuxOS controls", html)
         self.assertIn("Arm automatic curtailing schedule", html)
         self.assertIn("Arm automatic hashboard recovery", html)
-        self.assertIn("Unknown chips are ignored", html)
+        self.assertIn("Unknown chips and brief warnings are ignored", html)
 
 
 if __name__ == "__main__":
