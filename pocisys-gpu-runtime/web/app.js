@@ -1,4 +1,6 @@
 const byId = (id) => document.getElementById(id);
+let settingsLoaded = false;
+let settingsDirty = false;
 
 function formatBytes(value) {
   const number = Number(value);
@@ -30,6 +32,13 @@ function render(data) {
   setText("storage", data.data_root);
   setText("endpoint", data.ollama_endpoint);
   setText("ollama", data.ollama?.online ? "Online" : "Offline");
+
+  if (!settingsLoaded || !settingsDirty) {
+    const settings = data.runtime_settings || {};
+    byId("context-length").value = String(settings.context_length || 4096);
+    byId("keep-alive").value = settings.keep_alive || "0";
+    settingsLoaded = true;
+  }
 
   const models = data.ollama?.models || [];
   if (models.length) {
@@ -78,6 +87,41 @@ async function refresh() {
 
 refresh();
 setInterval(refresh, 5000);
+
+["context-length", "keep-alive"].forEach((id) => {
+  byId(id).addEventListener("change", () => {
+    settingsDirty = true;
+  });
+});
+
+byId("save-settings").addEventListener("click", async () => {
+  const button = byId("save-settings");
+  const result = byId("settings-result");
+  button.disabled = true;
+  button.textContent = "Saving...";
+  result.hidden = false;
+  result.textContent = "Saving bounded runtime settings...";
+
+  try {
+    const response = await fetch("/api/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        context_length: Number(byId("context-length").value),
+        keep_alive: byId("keep-alive").value,
+      }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+    settingsDirty = false;
+    result.textContent = "Saved. Restart GPU Runtime from Umbrel to apply.";
+  } catch (error) {
+    result.textContent = `Save failed: ${error.message}`;
+  } finally {
+    button.disabled = false;
+    button.textContent = "Save Memory Settings";
+  }
+});
 
 byId("safe-test-button").addEventListener("click", async () => {
   const button = byId("safe-test-button");

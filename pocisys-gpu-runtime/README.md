@@ -42,10 +42,12 @@ LAN or the internet.
 
 ## Runtime memory policy
 
-The runtime keeps one model loaded for up to 10 minutes after the most recent
-request. It then unloads the model and its active context automatically. Model
-concurrency is limited to one and the pending queue is bounded to prevent busy
-multi-user chats from accumulating unbounded work.
+The runtime unloads the model and its active context immediately after every
+response. Each request is capped at a 4K context, model concurrency is limited
+to one, and the pending queue is bounded. The container has a 2 GB physical-RAM
+limit with up to 2 GB of host-swap fallback when swap is available.
+The dashboard can select a bounded 1K, 2K, or 4K context and immediate,
+30-second, or 2-minute unload timing; a runtime restart applies changes.
 
 ## Persistent models
 

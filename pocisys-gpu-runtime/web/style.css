@@ -104,6 +104,7 @@ header p:last-child {
 .notice,
 article,
 .endpoint,
+.runtime-settings,
 .safe-test {
   border: 1px solid rgba(154, 181, 214, 0.14);
   border-radius: 18px;
@@ -210,6 +211,73 @@ dd {
   white-space: pre-wrap;
 }
 
+.runtime-settings {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 18px;
+  padding: 22px;
+}
+
+.runtime-settings > div,
+.runtime-settings .settings-result {
+  grid-column: 1 / -1;
+}
+
+.runtime-settings h2,
+.runtime-settings p {
+  margin: 0;
+}
+
+.runtime-settings p,
+.runtime-settings label {
+  color: #9eaec4;
+  line-height: 1.55;
+}
+
+.runtime-settings label {
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.runtime-settings select {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid rgba(154, 181, 214, 0.28);
+  border-radius: 11px;
+  background: #090f17;
+  color: #edf4ff;
+  font: inherit;
+}
+
+.runtime-settings button {
+  grid-column: 1 / -1;
+  width: fit-content;
+  padding: 12px 16px;
+  border: 1px solid #39d99d;
+  border-radius: 11px;
+  background: rgba(36, 157, 116, 0.2);
+  color: #78ffd0;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.runtime-settings button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.runtime-settings .settings-result {
+  padding: 12px 14px;
+  border: 1px solid rgba(103, 255, 203, 0.22);
+  border-radius: 11px;
+  background: #090f17;
+  color: #d8e5f5;
+}
+
 code {
   display: block;
   overflow-x: auto;
@@ -254,6 +322,10 @@ footer {
   }
 
   .safe-test {
+    grid-template-columns: 1fr;
+  }
+
+  .runtime-settings {
     grid-template-columns: 1fr;
   }
 

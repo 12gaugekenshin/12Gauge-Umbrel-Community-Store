@@ -124,7 +124,39 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-write_field app_version "0.1.5"
+mapfile -t RUNTIME_SETTINGS < <(
+  python3 - /data/runtime-settings.json "${OLLAMA_CONTEXT_LENGTH:-4096}" "${OLLAMA_KEEP_ALIVE:-0}" <<'PY'
+import json
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+default_context = int(sys.argv[2])
+default_keep_alive = sys.argv[3]
+allowed_contexts = {1024, 2048, 4096}
+allowed_keep_alive = {"0", "30s", "2m"}
+
+try:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+except (OSError, json.JSONDecodeError):
+    payload = {}
+
+try:
+    context = int(payload.get("context_length", default_context))
+except (TypeError, ValueError):
+    context = default_context
+keep_alive = str(payload.get("keep_alive", default_keep_alive))
+
+print(context if context in allowed_contexts else 4096)
+print(keep_alive if keep_alive in allowed_keep_alive else "0")
+PY
+)
+export OLLAMA_CONTEXT_LENGTH="${RUNTIME_SETTINGS[0]:-4096}"
+export OLLAMA_KEEP_ALIVE="${RUNTIME_SETTINGS[1]:-0}"
+
+write_field app_version "0.1.7"
+write_field ollama_context_length "$OLLAMA_CONTEXT_LENGTH"
+write_field ollama_keep_alive "$OLLAMA_KEEP_ALIVE"
 write_field driver_version "$DRIVER_VERSION"
 write_field expected_pci_id "$EXPECTED_PCI_ID"
 write_field ollama_endpoint "http://pocisys-gpu-runtime_runtime_1:11434"

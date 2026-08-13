@@ -24,6 +24,57 @@ PORT = int(os.environ.get("POCISYS_STATUS_PORT", "8780"))
 TEST_MODEL = os.environ.get("POCISYS_TEST_MODEL", "qwen3.5:9b-64k")
 TEST_TIMEOUT_SECONDS = 45
 TEST_LOCK = threading.Lock()
+SETTINGS_LOCK = threading.Lock()
+SETTINGS_FILE = Path(os.environ.get("POCISYS_SETTINGS_FILE", "/data/runtime-settings.json"))
+ALLOWED_CONTEXT_LENGTHS = {1024, 2048, 4096}
+ALLOWED_KEEP_ALIVE = {"0", "30s", "2m"}
+
+
+def default_runtime_settings() -> dict[str, int | str]:
+    try:
+        context_length = int(os.environ.get("OLLAMA_CONTEXT_LENGTH", "4096"))
+    except ValueError:
+        context_length = 4096
+    if context_length not in ALLOWED_CONTEXT_LENGTHS:
+        context_length = 4096
+    keep_alive = os.environ.get("OLLAMA_KEEP_ALIVE", "0")
+    if keep_alive not in ALLOWED_KEEP_ALIVE:
+        keep_alive = "0"
+    return {"context_length": context_length, "keep_alive": keep_alive}
+
+
+def validate_runtime_settings(payload: object) -> dict[str, int | str]:
+    if not isinstance(payload, dict):
+        raise ValueError("Settings must be a JSON object.")
+    try:
+        context_length = int(payload.get("context_length"))
+    except (TypeError, ValueError) as error:
+        raise ValueError("Choose a valid context length.") from error
+    keep_alive = str(payload.get("keep_alive", ""))
+    if context_length not in ALLOWED_CONTEXT_LENGTHS:
+        raise ValueError("Context length must be 1024, 2048, or 4096.")
+    if keep_alive not in ALLOWED_KEEP_ALIVE:
+        raise ValueError("Unload timing must be immediate, 30 seconds, or 2 minutes.")
+    return {"context_length": context_length, "keep_alive": keep_alive}
+
+
+def read_runtime_settings() -> dict[str, int | str]:
+    try:
+        return validate_runtime_settings(
+            json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
+        )
+    except (OSError, json.JSONDecodeError, ValueError):
+        return default_runtime_settings()
+
+
+def write_runtime_settings(settings: dict[str, int | str]) -> None:
+    SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    temporary = SETTINGS_FILE.with_suffix(".tmp")
+    temporary.write_text(
+        json.dumps(settings, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    os.replace(temporary, SETTINGS_FILE)
 
 
 def read_field(name: str, default: str = "") -> str:
@@ -105,6 +156,7 @@ def snapshot() -> dict[str, Any]:
         "ollama_version": read_field("ollama_version"),
         "ollama_endpoint": read_field("ollama_endpoint"),
         "data_root": read_field("data_root"),
+        "runtime_settings": read_runtime_settings(),
         "gpu": gpu_status(),
         "ollama": ollama_status(),
         "server_time": datetime.now(timezone.utc).isoformat(),
@@ -129,7 +181,7 @@ def run_safe_test() -> dict[str, Any]:
         ],
         "stream": False,
         "think": False,
-        "keep_alive": "2m",
+        "keep_alive": 0,
         "options": {
             "num_ctx": 2048,
             "num_predict": 64,
@@ -221,7 +273,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802
         path = self.path.split("?", 1)[0]
-        if path != "/api/safe-test":
+        if path not in ("/api/safe-test", "/api/settings"):
             self.send_error(HTTPStatus.NOT_FOUND)
             return
 
@@ -233,6 +285,34 @@ class Handler(BaseHTTPRequestHandler):
                 "application/json",
                 HTTPStatus.FORBIDDEN,
             )
+            return
+
+        if path == "/api/settings":
+            try:
+                content_length = int(self.headers.get("Content-Length", "0"))
+            except ValueError:
+                content_length = 0
+            if content_length <= 0 or content_length > 4096:
+                self.send_bytes(
+                    b'{"error":"Settings request must be between 1 and 4096 bytes."}\n',
+                    "application/json",
+                    HTTPStatus.BAD_REQUEST,
+                )
+                return
+            try:
+                settings = validate_runtime_settings(
+                    json.loads(self.rfile.read(content_length))
+                )
+                with SETTINGS_LOCK:
+                    write_runtime_settings(settings)
+                body = json.dumps(
+                    {"settings": settings, "restart_required": True},
+                    separators=(",", ":"),
+                ).encode("utf-8")
+                self.send_bytes(body, "application/json")
+            except (OSError, json.JSONDecodeError, ValueError) as error:
+                body = json.dumps({"error": str(error)}).encode("utf-8")
+                self.send_bytes(body, "application/json", HTTPStatus.BAD_REQUEST)
             return
 
         if not TEST_LOCK.acquire(blocking=False):

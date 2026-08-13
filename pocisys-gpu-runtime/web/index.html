@@ -61,6 +61,34 @@
         </p>
       </section>
 
+      <section class="runtime-settings">
+        <div>
+          <h2>Memory behavior</h2>
+          <p>
+            GPU Runtime always has a 2 GB system-RAM ceiling. These bounded
+            options control request context and how quickly the model unloads.
+          </p>
+        </div>
+        <label>
+          Request context
+          <select id="context-length">
+            <option value="1024">1K · lowest memory</option>
+            <option value="2048">2K</option>
+            <option value="4096">4K · default</option>
+          </select>
+        </label>
+        <label>
+          Idle model unload
+          <select id="keep-alive">
+            <option value="0">Immediately · default</option>
+            <option value="30s">After 30 seconds</option>
+            <option value="2m">After 2 minutes</option>
+          </select>
+        </label>
+        <button id="save-settings" type="button">Save Memory Settings</button>
+        <p id="settings-result" class="settings-result" hidden></p>
+      </section>
+
       <section class="safe-test">
         <div>
           <h2>Controlled model test</h2>
