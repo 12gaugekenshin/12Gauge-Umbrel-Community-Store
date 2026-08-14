@@ -19,6 +19,7 @@ def sanitize_miner(item):
             "name",
             "type",
             "group",
+            "mining_target",
             "online",
             "api_ok",
             "ping_ms",

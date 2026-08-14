@@ -30,6 +30,7 @@ class MinerPoller:
                 "ip": miner.get("ip"),
                 "type": miner.get("type"),
                 "group": miner.get("group", "Ungrouped"),
+                "mining_target": miner.get("mining_target", "btc"),
                 "online": False,
                 "api_ok": False,
                 "ping_ms": None,

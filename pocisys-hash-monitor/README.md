@@ -39,14 +39,13 @@ no growing long-term hashrate database. Miner controls, wallet data, and shell
 access are not exposed through MCP. Recent LuxOS control activity and health
 transitions are held in fixed-size in-memory queues.
 
-## Latest release — v1.8.0
+## Latest release — v1.8.1
 
-Adds a combined color-coded accepted-share feed with an independent hard limit
-of ten shares per pool, exact submitted difficulty, BTC network percentage,
-elapsed time, and bounded restart persistence. Health classification now uses
-firmware-aware telemetry, consecutive bad readings, recovery hysteresis, five
-explicit states, and visible raw rule diagnostics. Unknown or unsupported data
-is never treated as failed hardware.
+Adds per-miner BTC Solo, BCH Solo, or Pool assignments. Fleet cards group and
+color themselves automatically, custom groups remain available, and BTC/BCH
+odds use only the live hashrate assigned to that solo network. Accepted shares
+now show their full decimal network-difficulty percentage instead of scientific
+notation.
 
 Source and support: [PoCiSys Hash Monitor on GitHub](https://github.com/12gaugekenshin/PoCi-Hash-Monitor)
 

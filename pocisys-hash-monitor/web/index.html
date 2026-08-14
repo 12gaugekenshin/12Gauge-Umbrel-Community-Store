@@ -256,7 +256,8 @@
           <label><span>Display name</span><input name="name" maxlength="80" placeholder="Garage Bitaxe" required></label>
           <label><span>IP address or hostname</span><input name="ip" maxlength="255" placeholder="miner.local" required></label>
           <label><span>Miner OS / API</span><select name="type" required><option value="axeos">AxeOS / Bitaxe</option><option value="nerdqaxe">NerdOS / NerdQaxe</option><option value="luxos">LuxOS</option><option value="canaan_avalon">Canaan / Avalon *beta*</option><option value="cgminer">Generic cgminer API *beta*</option></select></label>
-          <label><span>Group</span><input name="group" maxlength="80" value="BTC Solo" placeholder="BTC Solo"></label>
+          <label><span>Mining target</span><select name="mining_target" required><option value="btc">BTC Solo</option><option value="bch">BCH Solo</option><option value="pool">Pool mining (exclude from solo odds)</option></select><small>Automatically groups and colors the miner. Only solo targets count toward that coin's odds.</small></label>
+          <label><span>Custom group <small>Optional</small></span><input name="group" maxlength="80" placeholder="Garage"><small>Leave blank to group automatically by mining target.</small></label>
         </div>
         <div class="form-section"><h3>Health thresholds</h3><p class="form-help">Expected hashrate is read from the miner when its API provides it. Leave minimum hashrate blank to alert automatically below 75% of that device-reported value.</p><div class="form-grid three">
           <label><span>Minimum hashrate <small>Optional</small></span><div class="input-unit"><input name="min_hashrate_ths" type="number" min="0" step="0.001"><em>TH/s</em></div></label>

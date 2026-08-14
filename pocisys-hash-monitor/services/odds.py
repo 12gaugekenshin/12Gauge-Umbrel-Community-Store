@@ -35,6 +35,7 @@ def _network_odds(symbol: str, enabled: bool, total_ths: float, network_eh, meta
         "symbol": symbol,
         "enabled": True,
         "available": True,
+        "miner_hashrate_ths": total_ths,
         "network_hashrate_eh": float(network_eh),
         "network_source": metadata.get("source", "Manual fallback"),
         "difficulty": metadata.get("difficulty"),
@@ -52,9 +53,16 @@ def _network_odds(symbol: str, enabled: bool, total_ths: float, network_eh, meta
 
 def calculate_odds(statuses: list[dict], config: dict, network_snapshot=None):
     total_ths = sum(float(item.get("hashrate_ths") or 0) for item in statuses if item.get("online"))
+    assigned_ths = {"btc": 0.0, "bch": 0.0}
+    for item in statuses:
+        if not item.get("online"):
+            continue
+        target = str(item.get("mining_target") or "btc").lower()
+        if target in assigned_ths:
+            assigned_ths[target] += float(item.get("hashrate_ths") or 0)
     odds_config = config.get("odds", {})
     live = network_snapshot or {}
-    result = {"total_hashrate_ths": total_ths}
+    result = {"total_hashrate_ths": total_ths, "assigned_hashrate_ths": assigned_ths}
 
     for symbol, enabled_key, manual_key, blocks_per_day in COINS:
         item = live.get(symbol.lower(), {}) if odds_config.get("auto_network_data", True) else {}
@@ -62,10 +70,12 @@ def calculate_odds(statuses: list[dict], config: dict, network_snapshot=None):
             network_hashrate, metadata = item.get("network_hashrate_eh"), item
         else:
             network_hashrate, metadata = odds_config.get(manual_key), None
-        result[symbol.lower()] = _network_odds(
+        coin_key = symbol.lower()
+        odds_hashrate_ths = assigned_ths[coin_key] if coin_key in assigned_ths else total_ths
+        result[coin_key] = _network_odds(
             symbol,
             odds_config.get(enabled_key, True),
-            total_ths,
+            odds_hashrate_ths,
             network_hashrate,
             metadata,
             blocks_per_day,

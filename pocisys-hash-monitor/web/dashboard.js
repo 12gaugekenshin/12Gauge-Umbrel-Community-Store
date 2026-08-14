@@ -122,6 +122,33 @@ function compactHashrate(ths) {
   return [number(ths, 2), "TH/s"];
 }
 
+function miningTargetLabel(value) {
+  const target = String(value || "btc").toLowerCase();
+  return target === "bch" ? "BCH Solo" : target === "pool" ? "Pool Mining" : "BTC Solo";
+}
+
+function miningTargetClass(value) {
+  const target = String(value || "btc").toLowerCase();
+  return target === "bch" ? "target-bch" : target === "pool" ? "target-pool" : "target-btc";
+}
+
+function fleetGroup(miner) {
+  const group = String(miner?.group || "").trim();
+  const automaticNames = ["", "ungrouped", "btc solo", "bch solo", "pool", "pool mining"];
+  return automaticNames.includes(group.toLowerCase()) ? miningTargetLabel(miner?.mining_target) : group;
+}
+
+function groupTargetClass(group) {
+  const normalized = String(group || "").toLowerCase();
+  return normalized === "bch solo" ? "target-bch" : normalized === "pool mining" ? "target-pool" : normalized === "btc solo" ? "target-btc" : "";
+}
+
+function oddsHashrate(item) {
+  const [value, unit] = compactHashrate(item?.miner_hashrate_ths ?? 0);
+  const allocated = ["BTC", "BCH"].includes(String(item?.symbol || "").toUpperCase());
+  return `${value} ${unit} ${allocated ? "assigned" : "fleet"}`;
+}
+
 function difficulty(value) {
   if (value === null || value === undefined || value === "") return "—";
   if (/[KMGTP]$/i.test(String(value).trim())) return String(value);
@@ -441,8 +468,8 @@ function renderSummary() {
     summaryMetric("Peak temperature", summary.highest_temperature_c === null ? "—" : `${number(summary.highest_temperature_c)} C`, "Across current sensors"),
     summaryMetric("Valid shares", number(summary.total_valid_shares, 0), "Current counters"),
     summaryMetric("Bad shares", number(summary.total_bad_shares, 0), "Invalid + stale + rejected", summary.total_bad_shares ? "warn" : ""),
-    summaryMetric("BTC daily odds", state.odds.btc.available ? percent(state.odds.btc.daily_chance) : "—", state.odds.btc.network_source || "Needs setup"),
-    summaryMetric("BCH daily odds", state.odds.bch.available ? percent(state.odds.bch.daily_chance) : "—", state.odds.bch.network_source || "Needs setup"),
+    summaryMetric("BTC daily odds", state.odds.btc.available ? percent(state.odds.btc.daily_chance) : "—", state.odds.btc.available ? oddsHashrate(state.odds.btc) : "Needs setup"),
+    summaryMetric("BCH daily odds", state.odds.bch.available ? percent(state.odds.bch.daily_chance) : "—", state.odds.bch.available ? oddsHashrate(state.odds.bch) : "Needs setup"),
   ].join("");
   $("#last-poll").textContent = summary.last_poll ? `Updated ${appTime(summary.last_poll)}` : "Waiting for first poll…";
 }
@@ -453,10 +480,10 @@ function minerCard(miner) {
   const fans = fanSummary(miner);
   const badShares = ["invalid", "stale", "rejected"].reduce((sum, key) => sum + (miner.shares?.[key] || 0), 0);
   const healthState = miner.health?.state || (miner.online && miner.api_ok ? "Unknown" : "Offline");
-  return `<article class="miner-card health-${escapeHtml(healthState.toLowerCase())} ${miner.online && miner.api_ok ? "online" : "offline"}" data-action="open-miner" data-id="${escapeHtml(miner.id)}" tabindex="0">
+  return `<article class="miner-card ${miningTargetClass(miner.mining_target)} health-${escapeHtml(healthState.toLowerCase())} ${miner.online && miner.api_ok ? "online" : "offline"}" data-action="open-miner" data-id="${escapeHtml(miner.id)}" tabindex="0">
     <div class="card-glow"></div>
     <div class="miner-head"><i class="status-dot"></i><div class="miner-title"><strong>${escapeHtml(miner.name)}</strong><small>${privateMarkup(miner.ip)}</small></div><span class="type-badge">${escapeHtml(minerTypeLabel(miner.type))}</span></div>
-    <div class="hashrate"><strong>${hash}</strong><span>${unit}</span><small>${escapeHtml(miner.group)}</small></div>
+    <div class="hashrate"><strong>${hash}</strong><span>${unit}</span><small>${escapeHtml(miningTargetLabel(miner.mining_target))}</small></div>
     <div class="miner-details">
       <div class="detail"><label>Temperature</label><span>${temp === null ? "—" : number(temp) + " C"}</span></div>
       <div class="detail"><label>API response</label><span>${miner.ping_ms === null ? "Failed" : number(miner.ping_ms) + " ms"}</span></div>
@@ -489,20 +516,20 @@ function onboarding() {
 
 function renderMiners() {
   const miners = state.miners || [];
-  const groups = ["All", ...new Set(miners.map(miner => miner.group || "Ungrouped"))];
+  const groups = ["All", ...new Set(miners.map(fleetGroup))];
   if (!groups.includes(activeGroup)) activeGroup = "All";
   $("#group-filters").innerHTML = miners.length > 1 ? groups.map(group => `<button class="filter-chip ${group === activeGroup ? "active" : ""}" data-action="filter-group" data-group="${escapeHtml(group)}">${escapeHtml(group)}</button>`).join("") : "";
   if (!miners.length) {
     $("#dashboard-miners").innerHTML = onboarding();
     return;
   }
-  const visible = activeGroup === "All" ? miners : miners.filter(miner => (miner.group || "Ungrouped") === activeGroup);
-  const grouped = Object.groupBy ? Object.groupBy(visible, miner => miner.group || "Ungrouped") : visible.reduce((result, miner) => {
-    (result[miner.group || "Ungrouped"] ||= []).push(miner);
+  const visible = activeGroup === "All" ? miners : miners.filter(miner => fleetGroup(miner) === activeGroup);
+  const grouped = Object.groupBy ? Object.groupBy(visible, fleetGroup) : visible.reduce((result, miner) => {
+    (result[fleetGroup(miner)] ||= []).push(miner);
     return result;
   }, {});
   const density = state.ui?.dashboard_density === "compact" ? "compact" : "comfortable";
-  $("#dashboard-miners").innerHTML = Object.entries(grouped).map(([group, items]) => `<section class="miner-group"><div class="group-label"><span>${escapeHtml(group)}</span><small>${items.length} miner${items.length === 1 ? "" : "s"}</small></div><div class="miner-grid ${density}">${items.map(minerCard).join("")}</div></section>`).join("");
+  $("#dashboard-miners").innerHTML = Object.entries(grouped).map(([group, items]) => `<section class="miner-group ${groupTargetClass(group)}"><div class="group-label"><span>${escapeHtml(group)}</span><small>${items.length} miner${items.length === 1 ? "" : "s"}</small></div><div class="miner-grid ${density}">${items.map(minerCard).join("")}</div></section>`).join("");
 }
 
 function renderManagedMiners() {
@@ -510,7 +537,7 @@ function renderManagedMiners() {
     $("#miners-table").innerHTML = `<div class="empty-action"><span class="empty-icon">⛏</span><h2>No miners configured</h2><p>Add a device to start building your fleet.</p><button class="primary" data-action="add-miner">Add miner</button></div>`;
     return;
   }
-  $("#miners-table").innerHTML = `<table><thead><tr><th>Order</th><th>Status</th><th>Miner</th><th>OS / API</th><th>Group</th><th>Hashrate</th><th>Temperature</th><th>Alerts</th><th>Actions</th></tr></thead><tbody>${managedMiners.map((entry, index) => {
+  $("#miners-table").innerHTML = `<table><thead><tr><th>Order</th><th>Status</th><th>Miner</th><th>OS / API</th><th>Group</th><th>Mining target</th><th>Hashrate</th><th>Temperature</th><th>Alerts</th><th>Actions</th></tr></thead><tbody>${managedMiners.map((entry, index) => {
     const config = entry.config;
     const status = statusFor(config.id);
     const [hash, unit] = compactHashrate(status?.hashrate_ths);
@@ -520,7 +547,7 @@ function renderManagedMiners() {
       <td><div class="order-buttons"><button data-action="move-miner" data-id="${config.id}" data-direction="-1" ${index === 0 ? "disabled" : ""}>↑</button><button data-action="move-miner" data-id="${config.id}" data-direction="1" ${index === managedMiners.length - 1 ? "disabled" : ""}>↓</button></div></td>
       <td class="${liveClass}">● ${liveText}</td>
       <td><button class="table-link" data-action="open-miner" data-id="${config.id}"><strong>${escapeHtml(config.name)}</strong><small>${privateMarkup(config.ip)}</small></button></td>
-      <td><span class="type-badge">${escapeHtml(minerTypeLabel(config.type))}</span></td><td>${escapeHtml(config.group)}</td>
+      <td><span class="type-badge">${escapeHtml(minerTypeLabel(config.type))}</span></td><td>${escapeHtml(fleetGroup(config))}</td><td>${escapeHtml(miningTargetLabel(config.mining_target))}</td>
       <td>${status ? `${hash} ${unit}` : "—"}</td><td>${status && highestTemp(status) !== null ? number(highestTemp(status)) + " C" : "—"}</td>
       <td><small>${config.min_hashrate_ths != null ? `Min ${number(config.min_hashrate_ths, 3)} TH/s` : status?.expected_hashrate_ths ? `Auto · 75% of ${number(status.expected_hashrate_ths, 3)} TH/s` : "No hash minimum"} · ${number(config.temp_warning_c, 0)} C / ${number(config.temp_critical_c, 0)} C</small></td>
       <td><div class="row-actions"><button data-action="edit-miner" data-id="${config.id}">Edit</button><button class="danger-text" data-action="delete-miner" data-id="${config.id}">Delete</button></div></td>
@@ -619,12 +646,15 @@ function renderMinerDetail(id) {
   ].filter(([, value]) => value !== null && value !== undefined);
   const expected = Number(status?.expected_hashrate_ths || 0);
   const performance = expected > 0 ? Math.max(0, Math.min(125, Number(status?.hashrate_ths || 0) / expected * 100)) : null;
+  const targetLabel = miningTargetLabel(config.mining_target);
+  const displayGroup = fleetGroup(config);
+  const identityLabel = displayGroup === targetLabel ? targetLabel : `${displayGroup} · ${targetLabel}`;
   $("#miner-detail").innerHTML = `<div class="detail-top">
     <button class="back-link" data-link href="/miners">← All miners</button>
     <div class="detail-actions"><a class="button-link" href="http://${escapeHtml(config.ip)}" target="_blank" rel="noopener">Open native dashboard ↗</a><button data-action="edit-miner" data-id="${config.id}">Edit setup</button></div>
   </div>
   <section class="miner-hero ${healthy ? "online" : "offline"}">
-    <div class="hero-grid"></div><div class="hero-ident"><span class="hero-status"><i class="status-dot"></i>${!config.enabled ? "Monitoring disabled" : `Live · ${escapeHtml(healthState)}`}</span><p class="eyebrow">${escapeHtml(config.group)}</p><h1>${escapeHtml(config.name)}</h1><p>${privateMarkup(config.ip)} · ${escapeHtml(minerTypeLabel(config.type))} · ${escapeHtml(status?.firmware || "Firmware unavailable")}</p></div>
+    <div class="hero-grid"></div><div class="hero-ident"><span class="hero-status"><i class="status-dot"></i>${!config.enabled ? "Monitoring disabled" : `Live · ${escapeHtml(healthState)}`}</span><p class="eyebrow">${escapeHtml(identityLabel)}</p><h1>${escapeHtml(config.name)}</h1><p>${privateMarkup(config.ip)} · ${escapeHtml(minerTypeLabel(config.type))} · ${escapeHtml(status?.firmware || "Firmware unavailable")}</p></div>
     <div class="hero-hash"><strong>${hash}</strong><span>${unit}</span><small>Current hashrate</small></div>
   </section>
   <div class="detail-stat-grid">
@@ -669,7 +699,7 @@ function networkLine(item) {
   if (!item?.enabled) return "";
   const symbol = item.symbol || "?";
   if (!item.available) return `<div class="network-line"><span class="coin ${symbol.toLowerCase()}">${coinMark(symbol)}</span><div><strong>${symbol}</strong><small>${escapeHtml(item.message)}</small></div><strong>—</strong></div>`;
-  return `<div class="network-line"><span class="coin ${symbol.toLowerCase()}">${coinMark(symbol)}</span><div><strong>${symbol}</strong><small>${money(item.price_usd)} · ${networkHashrate(item)} · ${escapeHtml(item.network_source)}</small></div><strong>${percent(item.daily_chance)} / day</strong></div>`;
+  return `<div class="network-line"><span class="coin ${symbol.toLowerCase()}">${coinMark(symbol)}</span><div><strong>${symbol}</strong><small>${money(item.price_usd)} · ${networkHashrate(item)} · ${oddsHashrate(item)}</small></div><strong>${percent(item.daily_chance)} / day</strong></div>`;
 }
 
 function oddsCard(item) {
@@ -677,7 +707,8 @@ function oddsCard(item) {
   if (!item?.available) return `<article class="odds-card"><header><span class="coin ${symbol.toLowerCase()}">${coinMark(symbol)}</span><div><h2>${symbol}</h2><p>${escapeHtml(item?.message || "Network data unavailable")}</p></div></header></article>`;
   return `<article class="odds-card"><header><span class="coin ${symbol.toLowerCase()}">${coinMark(symbol)}</span><div><h2>${symbol}</h2><p>${networkHashrate(item)} · ${escapeHtml(item.network_source)}</p></div><strong class="coin-price">${money(item.price_usd)}</strong></header><div class="odds-stats">
     <div class="odds-stat"><label>Daily chance</label><strong>${percent(item.daily_chance)}</strong></div><div class="odds-stat"><label>Weekly chance</label><strong>${percent(item.weekly_chance)}</strong></div>
-    <div class="odds-stat"><label>Network difficulty</label><strong>${difficulty(item.difficulty)}</strong></div><div class="odds-stat"><label>Estimated time</label><strong>${duration(item.estimated_days_to_block)}</strong></div>
+    <div class="odds-stat"><label>Network difficulty</label><strong>${difficulty(item.difficulty)}</strong></div><div class="odds-stat"><label>Odds hashrate</label><strong>${oddsHashrate(item).replace(/ (assigned|fleet)$/, "")}</strong></div>
+    <div class="odds-stat"><label>Estimated time</label><strong>${duration(item.estimated_days_to_block)}</strong></div>
   </div>${item.estimate_note ? `<p class="odds-note">${escapeHtml(item.estimate_note)}</p>` : ""}</article>`;
 }
 
@@ -720,13 +751,13 @@ function elapsedShare(seconds) {
   return `${number(seconds / 3600, 1)}h after prior`;
 }
 
-function shareNetworkPercent(value) {
-  if (value == null) return "Network % N/A";
+function shareNetworkMeaning(value) {
+  if (value == null) return `<span class="share-network-meaning"><strong>Network difficulty N/A</strong></span>`;
   const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed === 0) return "0% of network";
-  if (parsed < 0.000001) return `${parsed.toExponential(2)}% of network`;
-  if (parsed < 0.01) return `${parsed.toFixed(8)}% of network`;
-  return `${parsed.toFixed(4)}% of network`;
+  if (!Number.isFinite(parsed) || parsed <= 0) return `<span class="share-network-meaning"><strong>0% of network difficulty</strong></span>`;
+  const decimalPlaces = Math.min(14, Math.max(4, Math.ceil(-Math.log10(parsed)) + 2));
+  const expandedPercent = parsed.toFixed(decimalPlaces).replace(/\.?0+$/, "").replace(/^0\./, ".");
+  return `<span class="share-network-meaning ${parsed >= 100 ? "block-level" : ""}"><strong>${expandedPercent}% of network difficulty</strong></span>`;
 }
 
 function renderAcceptedShares() {
@@ -746,7 +777,7 @@ function renderAcceptedShares() {
   summary.innerHTML = summaries.join("") || `<div class="empty compact-empty">Connect a self-hosted Public Pool API to begin.</div>`;
   feed.innerHTML = entries.length ? entries.map(({pool, color, share}) => {
     const highest = share.id === pool.highest_recent_share_id;
-    return `<article class="accepted-share-row ${highest ? "highest" : ""}" style="--pool-color:${color}"><i></i><time>${appTime(share.time)}</time><span class="pool-share-name">${escapeHtml(pool.name)}</span><strong>${escapeHtml(share.worker)}</strong><span class="share-difficulty">${difficulty(share.difficulty)}</span><span>${shareNetworkPercent(share.network_percent)}</span><small>${escapeHtml(elapsedShare(share.elapsed_seconds))}</small>${highest ? `<b>Highest recent</b>` : ""}</article>`;
+    return `<article class="accepted-share-row ${highest ? "highest" : ""}" style="--pool-color:${color}"><i></i><time>${appTime(share.time)}</time><span class="pool-share-name">${escapeHtml(pool.name)}</span><strong>${escapeHtml(share.worker)}</strong><span class="share-difficulty">${difficulty(share.difficulty)}</span>${shareNetworkMeaning(share.network_percent)}<small>${escapeHtml(elapsedShare(share.elapsed_seconds))}</small>${highest ? `<b>Highest recent</b>` : ""}</article>`;
   }).join("") : `<div class="empty"><strong>No accepted submissions retained yet.</strong><span>PoCiSys Public Pool Port v0.1.5+ supplies exact accepted-share difficulty. Unsupported pool APIs remain explicitly N/A.</span></div>`;
 }
 
@@ -1044,7 +1075,8 @@ function openMinerDialog(id = null) {
   populateLuxosProfileSelect(form.elements.control_low_profile, [], "", "Load profiles to choose…");
   setFormValue(form, "id", "");
   setFormValue(form, "enabled", true);
-  setFormValue(form, "group", "BTC Solo");
+  setFormValue(form, "group", "");
+  setFormValue(form, "mining_target", "btc");
   setFormValue(form, "temp_warning_c", 70);
   setFormValue(form, "temp_critical_c", 80);
   setFormValue(form, "display_order", managedMiners.length + 1);
@@ -1061,6 +1093,7 @@ function openMinerDialog(id = null) {
     const config = configuredMiner(id);
     if (!config) return;
     Object.entries(config).forEach(([key, value]) => setFormValue(form, key, value));
+    if (["ungrouped", "btc solo", "bch solo", "pool", "pool mining"].includes(String(config.group || "").toLowerCase())) setFormValue(form, "group", "");
     $("#miner-dialog-title").textContent = `Edit ${config.name}`;
   } else {
     $("#miner-dialog-title").textContent = "Add miner";
@@ -1381,6 +1414,7 @@ $("#miner-form").addEventListener("submit", async event => {
     ip: form.elements.ip.value,
     type: form.elements.type.value,
     group: form.elements.group.value || "Ungrouped",
+    mining_target: form.elements.mining_target.value,
     enabled: form.elements.enabled.checked,
     display_order: Number(form.elements.display_order.value || 0),
     min_hashrate_ths: nullableNumber(form.elements.min_hashrate_ths.value),

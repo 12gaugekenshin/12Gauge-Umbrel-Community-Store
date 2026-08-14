@@ -2,7 +2,7 @@ manifestVersion: 1
 id: pocisys-hash-monitor
 category: bitcoin
 name: PoCiSys Hash Monitor
-version: "1.8.0"
+version: "1.8.1"
 tagline: Live SHA-256 fleet monitoring with optional LuxOS control
 icon: https://raw.githubusercontent.com/12gaugekenshin/PoCi-Hash-Monitor/main/pocisys-hash-monitor/icon-v2.png
 description: >-
@@ -35,12 +35,10 @@ gallery:
   - https://raw.githubusercontent.com/12gaugekenshin/PoCi-Hash-Monitor/HEAD/pocisys-hash-monitor/1.png
   - https://raw.githubusercontent.com/12gaugekenshin/PoCi-Hash-Monitor/HEAD/pocisys-hash-monitor/2.png
 releaseNotes: >-
-  Adds a combined, color-coded feed containing the ten latest exact accepted
-  shares per configured pool, including elapsed time and BTC difficulty percentage.
-  Health reporting now distinguishes Healthy, Warning, Unhealthy, Offline, and
-  Unknown; requires consecutive faults and recovery hysteresis; and exposes the
-  exact telemetry rule behind each determination. PoCiSys Public Pool Port is
-  supported through its read-only port 2020 API.
+  Adds per-miner BTC Solo, BCH Solo, or Pool assignments. Fleet cards group and
+  color themselves automatically, custom groups remain available, and BTC/BCH
+  odds use only the live hashrate assigned to that solo network. Accepted shares
+  now show their full decimal network-difficulty percentage instead of scientific notation.
 dependencies: []
 path: ""
 defaultUsername: ""

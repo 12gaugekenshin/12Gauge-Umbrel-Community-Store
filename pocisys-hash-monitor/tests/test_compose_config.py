@@ -30,6 +30,19 @@ class UmbrelComposeTests(unittest.TestCase):
         self.assertIn("Arm automatic hashboard recovery", html)
         self.assertIn("Unknown chips and brief warnings are ignored", html)
 
+    def test_miner_setup_has_automatic_mining_target(self):
+        web_root = Path(__file__).resolve().parents[1] / "web"
+        html = (web_root / "index.html").read_text(encoding="utf-8")
+        javascript = (web_root / "dashboard.js").read_text(encoding="utf-8")
+        self.assertIn('name="mining_target"', html)
+        self.assertIn('value="btc">BTC Solo', html)
+        self.assertIn('value="bch">BCH Solo', html)
+        self.assertIn('value="pool">Pool mining', html)
+        self.assertIn("mining_target: form.elements.mining_target.value", javascript)
+        self.assertIn("function fleetGroup(miner)", javascript)
+        self.assertIn("function shareNetworkMeaning(value)", javascript)
+        self.assertIn("% of network difficulty", javascript)
+
 
 if __name__ == "__main__":
     unittest.main()

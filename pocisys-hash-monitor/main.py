@@ -33,7 +33,7 @@ from services.system_stats import SystemStatsService
 from services.luxos_control import LuxOSControlError, LuxOSControlService
 
 
-APP_VERSION = "1.8.0"
+APP_VERSION = "1.8.1"
 ROOT = Path(__file__).resolve().parent
 WEB_ROOT = ROOT / "web"
 CONFIG_PATH = Path(os.environ.get("POCISYS_CONFIG_PATH", ROOT / "config.json")).resolve()
@@ -113,11 +113,15 @@ def clean_miner(data):
     minimum = as_float(data.get("min_hashrate_ths"), None)
     if minimum is not None and minimum < 0:
         raise ApiError(400, "Minimum hashrate cannot be negative")
+    mining_target = str(data.get("mining_target") or "btc").lower()
+    if mining_target not in {"btc", "bch", "pool"}:
+        raise ApiError(400, "Choose BTC Solo, BCH Solo, or Pool mining")
     cleaned = {
         "name": name,
         "ip": clean_host(data.get("ip")),
         "type": miner_type,
         "group": str(data.get("group") or "Ungrouped").strip()[:80] or "Ungrouped",
+        "mining_target": mining_target,
         "enabled": bool(data.get("enabled", True)),
         "display_order": max(0, min(9999, as_int(data.get("display_order"), 0))),
         "min_hashrate_ths": minimum,
@@ -337,6 +341,7 @@ def hermes_overview():
                 "id": item.get("id"),
                 "name": item.get("name"),
                 "group": item.get("group"),
+                "mining_target": item.get("mining_target"),
                 "online": item.get("online"),
                 "api_ok": item.get("api_ok"),
                 "status": item.get("status"),

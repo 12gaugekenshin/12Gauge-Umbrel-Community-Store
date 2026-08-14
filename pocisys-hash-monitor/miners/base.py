@@ -85,6 +85,7 @@ class MinerDriver:
             "ip": self.ip,
             "type": self.miner.get("type", "unknown"),
             "group": self.miner.get("group", "Ungrouped"),
+            "mining_target": self.miner.get("mining_target", "btc"),
             "online": False,
             "api_ok": False,
             "ping_ms": None,

@@ -55,6 +55,11 @@ def normalize_config(value: dict):
         config["discord"].setdefault(key, default)
     for miner in config["miners"]:
         miner.setdefault("id", make_id("miner"))
+        target = str(miner.get("mining_target") or "").lower()
+        if target not in {"btc", "bch", "pool"}:
+            group = str(miner.get("group") or "").casefold()
+            target = "bch" if "bch" in group or "bitcoin cash" in group else "pool" if "pool" in group else "btc"
+        miner["mining_target"] = target
         if "min_hashrate_ths" not in miner:
             expected = miner.get("expected_hashrate_ths")
             percent = miner.get("hashrate_warning_percent", 75)

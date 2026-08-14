@@ -22,6 +22,7 @@ class HermesMcpTests(unittest.TestCase):
                 "id": "miner_1",
                 "name": "Loki1",
                 "group": "BTC Solo",
+                "mining_target": "btc",
                 "online": True,
                 "hashrate_ths": 42.5,
             },
@@ -106,6 +107,7 @@ class HermesMcpTests(unittest.TestCase):
                 "name": "Loki1",
                 "ip": "192.168.1.99",
                 "hashrate_ths": 42.5,
+                "mining_target": "btc",
                 "pool": {
                     "url": "stratum+tcp://192.168.1.10:3333",
                     "user": "bc1q-private.worker",
@@ -118,6 +120,7 @@ class HermesMcpTests(unittest.TestCase):
         self.assertNotIn("url", miner["pool"])
         self.assertNotIn("user", miner["pool"])
         self.assertEqual(miner["hashrate_ths"], 42.5)
+        self.assertEqual(miner["mining_target"], "btc")
 
         pool = sanitize_pool(
             {
