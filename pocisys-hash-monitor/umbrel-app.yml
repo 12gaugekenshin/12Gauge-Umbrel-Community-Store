@@ -2,7 +2,7 @@ manifestVersion: 1
 id: pocisys-hash-monitor
 category: bitcoin
 name: PoCiSys Hash Monitor
-version: "1.8.3"
+version: "1.8.4"
 tagline: Live SHA-256 fleet monitoring with optional LuxOS control
 icon: https://raw.githubusercontent.com/12gaugekenshin/PoCi-Hash-Monitor/main/pocisys-hash-monitor/icon-v2.png
 description: >-
@@ -35,10 +35,9 @@ gallery:
   - https://raw.githubusercontent.com/12gaugekenshin/PoCi-Hash-Monitor/HEAD/pocisys-hash-monitor/1.png
   - https://raw.githubusercontent.com/12gaugekenshin/PoCi-Hash-Monitor/HEAD/pocisys-hash-monitor/2.png
 releaseNotes: >-
-  Adds a configurable pool-disconnect grace period, defaulting to 60 seconds.
-  Brief LuxOS Stratum inactivity drops that reconnect on their own remain local
-  and no longer spam Discord. Sustained disconnects send one alert after the
-  grace period and one recovery message when the pool reconnects.
+  Adds a visible safety and liability notice to the README, About section, and
+  LuxOS Control Mode. It clarifies that telemetry is not a hardware safety system
+  and optional miner controls are used at the user's risk.
 dependencies: []
 path: ""
 defaultUsername: ""

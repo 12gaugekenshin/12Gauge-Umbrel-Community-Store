@@ -49,6 +49,19 @@ class UmbrelComposeTests(unittest.TestCase):
             "Shared formatters must load before the dashboard",
         )
 
+    def test_safety_notice_is_visible_near_controls_and_in_about(self):
+        app_root = Path(__file__).resolve().parents[1]
+        html = (app_root / "web" / "index.html").read_text(encoding="utf-8")
+        readme_path = app_root / "README.md"
+        if not readme_path.exists():
+            readme_path = app_root.parent / "README.md"
+        readme = readme_path.read_text(encoding="utf-8")
+        self.assertIn("Use miner controls at your own risk.", html)
+        self.assertIn("Safety and liability", html)
+        self.assertGreaterEqual(html.count("not a hardware safety system"), 2)
+        self.assertIn("## Safety and liability", readme)
+        self.assertIn("provided “as is” without warranty", readme)
+
 
 if __name__ == "__main__":
     unittest.main()

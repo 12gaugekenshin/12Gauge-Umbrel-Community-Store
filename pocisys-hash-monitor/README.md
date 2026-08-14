@@ -39,12 +39,22 @@ no growing long-term hashrate database. Miner controls, wallet data, and shell
 access are not exposed through MCP. Recent LuxOS control activity and health
 transitions are held in fixed-size in-memory queues.
 
-## Latest release — v1.8.3
+## Safety and liability
 
-Adds a configurable pool-disconnect grace period, defaulting to 60 seconds.
-Brief LuxOS Stratum inactivity drops that reconnect on their own remain visible
-on the miner but no longer create Discord alerts. Sustained disconnects send one
-alert after the grace period and one recovery message when the pool reconnects.
+**PoCiSys Hash Monitor is provided “as is” without warranty.** Monitoring data
+may be delayed, incomplete, or inaccurate and must not be treated as a hardware
+safety system. Enabling miner controls, native LuxOS profiles, curtailment, or
+hashboard recovery is done entirely at the user's risk. To the maximum extent
+permitted by law, PoCiSys, 12GaugeKenshin, and contributors are not responsible
+for hardware damage, overheating, downtime, lost mining revenue, increased power
+costs, data loss, or other direct or indirect damages. Users are responsible for
+verifying power, cooling, firmware, and manufacturer limits.
+
+## Latest release — v1.8.4
+
+Adds a visible safety and liability notice to the README, About section, and
+LuxOS Control Mode. It clarifies that telemetry is not a hardware safety system
+and optional miner controls are used at the user's risk.
 
 Source and support: [PoCiSys Hash Monitor on GitHub](https://github.com/12gaugekenshin/PoCi-Hash-Monitor)
 
