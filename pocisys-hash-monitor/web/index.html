@@ -228,6 +228,14 @@
           <div class="settings-card-head"><span class="settings-icon">P</span><div><h2>About PoCiSys</h2><p>Built by 12GaugeKenshin for open, verifiable compute infrastructure.</p></div></div>
           <p class="settings-explainer about-copy"><strong>PoCiSys is building an open, verifiable infrastructure stack for AI auditing and cryptocurrency mining.</strong> Its AI auditing system monitors model and agent behavior through timing, performance, configuration, and operational signals, helping detect drift, tampering, unauthorized changes, and other anomalies without exposing private prompts, training data, or proprietary models.</p>
           <p class="settings-explainer about-copy">Alongside it, PoCi Hash Monitor provides lightweight tools for managing mining hardware, monitoring pools and nodes, tracking performance, and supporting self-hosted BTC, BCH, and KAS infrastructure. Together, these systems create a transparent foundation for proving compute integrity across both AI and decentralized networks.</p>
+          <details class="health-diagnostics"><summary>Dashboard terms</summary><div>
+            <p><strong>Bad shares</strong><span>Rejected + invalid + stale counters reported by the miners. These are current device counters, not stored history.</span></p>
+            <p><strong>Session best</strong><span>Highest share difficulty reported since the miner or pool session began.</span></p>
+            <p><strong>All-time best</strong><span>Highest difficulty the source says it has retained. Availability depends on firmware or the local pool API.</span></p>
+            <p><strong>Low Chip Score</strong><span>An optional LuxOS score warning. The chip remains responsive unless LuxOS separately marks it unhealthy.</span></p>
+            <p><strong>Pool monitor</strong><span>Reads statistics or bounded events from a pool you host. The external connection test only checks TCP reachability.</span></p>
+            <p><strong>Solo odds</strong><span>Uses only live hashrate assigned to that coin. Pool-mining devices are excluded from BTC/BCH solo odds.</span></p>
+          </div></details>
           <div class="creator-links" aria-label="PoCiSys links">
             <a href="https://github.com/12gaugekenshin" target="_blank" rel="noopener noreferrer">GitHub</a>
             <a href="https://pocisys.io/" target="_blank" rel="noopener noreferrer">PoCiSys.io</a>
@@ -288,7 +296,7 @@
           <div class="luxos-feature-block">
             <div class="luxos-feature-head"><p class="eyebrow">ASIC protection</p><h3>Hashboard health &amp; recovery</h3><p class="form-help">Independent of manual controls and the curtailment schedule.</p></div>
             <div class="form-grid two">
-              <label><span>Chip health score threshold</span><div class="input-unit"><input name="chip_health_score_threshold" type="number" min="0" max="100" step="1"><em>/ 100</em></div><small>A known chip below this score counts as degraded even when LuxOS labels it Healthy. Set 0 to react only when LuxOS explicitly marks a chip unhealthy.</small></label>
+              <label><span>Optional chip score warning</span><div class="input-unit"><input name="chip_health_score_threshold" type="number" min="0" max="100" step="1"><em>/ 100</em></div><small>Default 0 follows LuxOS native health only. A higher value adds a separate Low Chip Score warning; it never means the chip stopped responding.</small></label>
             </div>
             <label class="switch-row enabled-row"><span><strong>Arm automatic hashboard recovery</strong><small>Unknown chips and brief warnings are ignored. Three consecutive known unhealthy readings trigger one alert and restart only the affected board. PoCiSys then observes for ten minutes and sends one outcome alert. Routine restart noise is suppressed, and a fixed six-hour board cooldown prevents loops.</small></span><input name="auto_recover_hashboards" type="checkbox" role="switch"></label>
           </div>
@@ -322,6 +330,7 @@
   </dialog>
 
   <div id="toast" role="status"></div>
+  <script src="/static/formatters.js"></script>
   <script src="/static/dashboard.js"></script>
 </body>
 </html>

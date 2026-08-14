@@ -39,13 +39,15 @@ no growing long-term hashrate database. Miner controls, wallet data, and shell
 access are not exposed through MCP. Recent LuxOS control activity and health
 transitions are held in fixed-size in-memory queues.
 
-## Latest release — v1.8.1
+## Latest release — v1.8.2
 
-Adds per-miner BTC Solo, BCH Solo, or Pool assignments. Fleet cards group and
-color themselves automatically, custom groups remain available, and BTC/BCH
-odds use only the live hashrate assigned to that solo network. Accepted shares
-now show their full decimal network-difficulty percentage instead of scientific
-notation.
+This stability and clarity release separates LuxOS native chip health from the
+optional score warning, so a low score no longer looks like a missing or
+non-responsive ASIC. Runtime alert state is hard-capped and pruned, removed
+miners leave no stale health state behind, request failures are more useful, and
+sanitized AxeOS, NerdQaxe, and LuxOS fixtures expand regression coverage. Shared
+validation and display helpers are now isolated from the main server and
+dashboard files without changing the app's familiar layout.
 
 Source and support: [PoCiSys Hash Monitor on GitHub](https://github.com/12gaugekenshin/PoCi-Hash-Monitor)
 

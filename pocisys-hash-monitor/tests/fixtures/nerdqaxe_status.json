@@ -1,0 +1,19 @@
+{
+  "hashRateGhs": 5480,
+  "expectedHashrate": 5500,
+  "temp": 58.1,
+  "fanrpm": 1660,
+  "fan2rpm": 2348,
+  "asicCount": 4,
+  "ASICModel": "BM1370",
+  "asicTemps": [56.0, 57.0, 58.1, 57.5],
+  "errorPercentage": 0.2,
+  "stratumURL": "stratum+tcp://pool.example:3333",
+  "stratumConnected": true,
+  "sharesAccepted": 200,
+  "sharesRejected": 2,
+  "bestSessionDiff": 692590000,
+  "bestDiff": 165850000000,
+  "uptimeSeconds": 54321,
+  "version": "NerdQaxe fixture"
+}

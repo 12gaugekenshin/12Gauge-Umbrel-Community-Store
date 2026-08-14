@@ -34,14 +34,20 @@ class UmbrelComposeTests(unittest.TestCase):
         web_root = Path(__file__).resolve().parents[1] / "web"
         html = (web_root / "index.html").read_text(encoding="utf-8")
         javascript = (web_root / "dashboard.js").read_text(encoding="utf-8")
+        formatters = (web_root / "formatters.js").read_text(encoding="utf-8")
         self.assertIn('name="mining_target"', html)
         self.assertIn('value="btc">BTC Solo', html)
         self.assertIn('value="bch">BCH Solo', html)
         self.assertIn('value="pool">Pool mining', html)
         self.assertIn("mining_target: form.elements.mining_target.value", javascript)
-        self.assertIn("function fleetGroup(miner)", javascript)
+        self.assertIn("function fleetGroup(miner)", formatters)
         self.assertIn("function shareNetworkMeaning(value)", javascript)
         self.assertIn("% of network difficulty", javascript)
+        self.assertLess(
+            html.index('/static/formatters.js'),
+            html.index('/static/dashboard.js'),
+            "Shared formatters must load before the dashboard",
+        )
 
 
 if __name__ == "__main__":

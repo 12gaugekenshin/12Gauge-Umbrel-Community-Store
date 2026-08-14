@@ -193,6 +193,9 @@ class LuxOSClient:
             low_chips = []
             known_count = 0
             unknown_count = 0
+            native_healthy_count = 0
+            unhealthy_count = 0
+            low_score_count = 0
             minimum_score = None
             for chip in chips:
                 health = str(chip.get("Healthy") or "Unknown").strip().upper()
@@ -203,36 +206,52 @@ class LuxOSClient:
                     unknown_count += 1
                 else:
                     known_count += 1
-                low = health == "N" or (health != "UNKNOWN" and score is not None and score < score_threshold)
+                    if health == "N":
+                        unhealthy_count += 1
+                    else:
+                        native_healthy_count += 1
+                score_low = bool(
+                    score_threshold > 0
+                    and health not in {"UNKNOWN", "N"}
+                    and score is not None
+                    and score < score_threshold
+                )
+                if score_low:
+                    low_score_count += 1
+                low = health == "N" or score_low
                 if low and len(low_chips) < MAX_LOW_CHIPS_PER_BOARD:
                     low_chips.append({
                         "chip": _integer(chip.get("Chip"), len(low_chips)),
                         "score": score,
                         "healthy": health,
+                        "reason": "native_unhealthy" if health == "N" else "score_below_threshold",
                     })
-            low_count = sum(
-                1
-                for chip in chips
-                if str(chip.get("Healthy") or "Unknown").strip().upper() == "N"
-                or (
-                    str(chip.get("Healthy") or "Unknown").strip().upper() != "UNKNOWN"
-                    and _number(chip.get("Score")) is not None
-                    and _number(chip.get("Score")) < score_threshold
-                )
-            )
+            low_count = unhealthy_count + low_score_count
             total = len(chips)
-            board_status = "warning" if low_count else ("healthy" if known_count > 0 else "unknown")
+            if unhealthy_count:
+                board_status = "unhealthy"
+            elif low_score_count:
+                board_status = "warning"
+            else:
+                board_status = "healthy" if known_count > 0 else "unknown"
             items.append({
                 "board_id": board_id,
                 "name": f"Hashboard {board_id + 1}",
                 "status": board_status,
-                "chips_healthy": max(0, total - low_count),
+                # This is LuxOS's native Healthy flag count. A known healthy
+                # chip whose score crosses a user-defined warning threshold is
+                # still responsive and must not be presented as missing.
+                "chips_healthy": native_healthy_count,
                 "chips_total": total,
                 "chips_unknown": unknown_count,
                 "chips_evaluated": known_count,
                 "low_chip_count": low_count,
+                "unhealthy_chip_count": unhealthy_count,
+                "low_score_count": low_score_count,
                 "minimum_score": round(minimum_score, 2) if minimum_score is not None else None,
                 "low_chips": low_chips,
+                "score_threshold": score_threshold,
+                "source": "LuxOS healthchipget",
             })
         healthy_boards = sum(1 for item in items if item["status"] == "healthy")
         current_profile = None
@@ -489,7 +508,7 @@ class LuxOSControlService:
                     )
                 self.recovery_incidents.pop(key, None)
                 continue
-            if board.get("status") == "warning" and recovery_active:
+            if board.get("status") in {"warning", "unhealthy"} and recovery_active:
                 self.bad_confirmations[key] = self.bad_confirmations.get(key, 0) + 1
             else:
                 self.bad_confirmations[key] = 0

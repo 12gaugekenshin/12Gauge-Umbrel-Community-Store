@@ -163,12 +163,20 @@ class HealthEngine:
             item_state = str(item.get("status") or "unknown").strip().lower()
             healthy = _number(item.get("chips_healthy"))
             total = _number(item.get("chips_total"))
+            unhealthy_count = _number(item.get("unhealthy_chip_count"))
+            low_score_count = _number(item.get("low_score_count"))
+            minimum_score = _number(item.get("minimum_score"))
+            score_threshold = _number(item.get("score_threshold"))
             detail = {
                 "signal": "chip_responsiveness",
                 "component": name,
                 "value": item_state if item_state else "unknown",
                 "chips_healthy": healthy,
                 "chips_total": total,
+                "unhealthy_chip_count": unhealthy_count,
+                "low_score_count": low_score_count,
+                "minimum_score": minimum_score,
+                "score_threshold": score_threshold,
                 "source": str(item.get("source") or "miner API")[:120],
             }
             diagnostics.append(detail)
@@ -179,13 +187,27 @@ class HealthEngine:
                 known_chip_signals += 1
             if self._curtailed(status) and item_state in {"disabled", "off", "stopped"}:
                 continue
-            if explicit_bad or count_bad:
+            if explicit_bad or (count_bad and not explicit_warning):
                 count_detail = f"{int(healthy)}/{int(total)} responsive" if healthy is not None and total is not None else item_state
                 candidates.append(_reason(
                     f"chip_not_responding:{name}", "Chip Not Responding", "unhealthy",
                     count_detail, "all reported chips responsive", name,
                 ))
             elif explicit_warning:
+                if low_score_count and low_score_count > 0:
+                    score_detail = (
+                        f"{minimum_score:g}/100"
+                        if minimum_score is not None
+                        else f"{int(low_score_count)} chip(s) below threshold"
+                    )
+                    candidates.append(_reason(
+                        f"chip_score_low:{name}", "Low Chip Score", "warning",
+                        score_detail,
+                        f"{score_threshold:g}/100" if score_threshold is not None else "configured score threshold",
+                        name,
+                        "LuxOS still reports the chip responsive",
+                    ))
+                    continue
                 candidates.append(_reason(
                     f"chip_warning:{name}", "Chip Telemetry Warning", "warning",
                     item_state, "healthy", name,

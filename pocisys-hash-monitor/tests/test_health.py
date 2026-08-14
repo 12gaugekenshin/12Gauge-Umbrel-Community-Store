@@ -81,6 +81,39 @@ class HealthEngineTests(unittest.TestCase):
         self.assertEqual(healthy["health"]["state"], "Healthy")
         self.assertEqual(engine.trackers["one"]["state"], "Warning")
 
+    def test_low_luxos_score_is_warning_not_missing_chip(self):
+        engine = HealthEngine()
+        value = status()
+        value["chip_health"]["items"] = [{
+            "name": "Hashboard 1",
+            "status": "warning",
+            "chips_healthy": 77,
+            "chips_total": 77,
+            "unhealthy_chip_count": 0,
+            "low_score_count": 1,
+            "minimum_score": 89.6,
+            "score_threshold": 90,
+            "source": "LuxOS healthchipget",
+        }]
+        engine.evaluate(value, miner())
+        result = engine.evaluate(value, miner())
+        self.assertEqual(result["health"]["state"], "Warning")
+        self.assertEqual(result["health"]["reasons"][0]["code"], "chip_score_low:Hashboard 1")
+        self.assertEqual(result["health"]["reasons"][0]["label"], "Low Chip Score")
+
+    def test_persistent_native_luxos_failure_is_unhealthy(self):
+        engine = HealthEngine()
+        value = status(chip_status="unhealthy")
+        value["chip_health"]["items"][0].update(
+            unhealthy_chip_count=1,
+            low_score_count=0,
+            source="LuxOS healthchipget",
+        )
+        for _ in range(3):
+            result = engine.evaluate(value, miner())
+        self.assertEqual(result["health"]["state"], "Unhealthy")
+        self.assertEqual(result["health"]["reasons"][0]["label"], "Chip Not Responding")
+
 
 if __name__ == "__main__":
     unittest.main()

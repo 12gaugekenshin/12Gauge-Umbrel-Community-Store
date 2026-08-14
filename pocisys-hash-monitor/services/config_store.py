@@ -80,7 +80,9 @@ def normalize_config(value: dict):
             miner.setdefault("control_low_profile", "")
             miner.setdefault("control_full_profile", "")
             miner.setdefault("auto_recover_hashboards", False)
-            miner.setdefault("chip_health_score_threshold", 90)
+            # Native LuxOS health is authoritative by default. Users may opt
+            # into an additional score warning for known aging hardware.
+            miner.setdefault("chip_health_score_threshold", 0)
     for pool in config["pools"]:
         pool.setdefault("id", make_id("pool"))
         pool.setdefault("mode", "local_log")

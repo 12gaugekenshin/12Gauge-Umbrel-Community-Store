@@ -1,0 +1,11 @@
+{
+  "asccount": {"ASCS": [{"Count": 1}]},
+  "health": {
+    "CHIPS": [
+      {"Chip": 0, "Healthy": "Y", "Score": 96.5},
+      {"Chip": 1, "Healthy": "Y", "Score": 89.6},
+      {"Chip": 2, "Healthy": "Unknown", "Score": 10.0}
+    ]
+  },
+  "config": {"CONFIG": [{"Profile": "Example"}]}
+}

@@ -1,8 +1,5 @@
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
-const escapeHtml = (value) => String(value ?? "—").replace(/[&<>"']/g, char => (
-  {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]
-));
 const privateMarkup = (value) => `<span class="ip-value">${escapeHtml(value)}</span>`;
 const privateAttr = (value) => hideIps ? "" : escapeHtml(value);
 
@@ -80,21 +77,6 @@ const DEFAULT_SETTINGS = {
   manual_chta_network_hashrate_eh: null,
 };
 
-const TYPE_LABELS = {
-  axeos: "AxeOS",
-  bitaxe: "Bitaxe",
-  luxos: "LuxOS",
-  nerdaxe: "NerdAxe",
-  nerdqaxe: "NerdQaxe",
-  canaan_avalon: "Avalon beta",
-  avalon: "Avalon beta",
-  cgminer: "cgminer beta",
-};
-
-function minerTypeLabel(type) {
-  return TYPE_LABELS[String(type || "").toLowerCase()] || String(type || "unknown");
-}
-
 function setIpPrivacy(enabled = hideIps) {
   hideIps = Boolean(enabled);
   localStorage.setItem("pocisys-hide-ips", hideIps ? "true" : "false");
@@ -106,68 +88,10 @@ function setIpPrivacy(enabled = hideIps) {
   }
 }
 
-function number(value, decimals = 1) {
-  if (value === null || value === undefined || Number.isNaN(Number(value))) return "—";
-  return Number(value).toLocaleString(undefined, {maximumFractionDigits: decimals});
-}
-
-function nullableNumber(value) {
-  return value === "" || value === null || value === undefined ? null : Number(value);
-}
-
-function compactHashrate(ths) {
-  if (ths === null || ths === undefined) return ["—", "TH/s"];
-  if (ths < 0.001) return [number(ths * 1e6, 1), "MH/s"];
-  if (ths < 1) return [number(ths * 1000, 2), "GH/s"];
-  return [number(ths, 2), "TH/s"];
-}
-
-function miningTargetLabel(value) {
-  const target = String(value || "btc").toLowerCase();
-  return target === "bch" ? "BCH Solo" : target === "pool" ? "Pool Mining" : "BTC Solo";
-}
-
-function miningTargetClass(value) {
-  const target = String(value || "btc").toLowerCase();
-  return target === "bch" ? "target-bch" : target === "pool" ? "target-pool" : "target-btc";
-}
-
-function fleetGroup(miner) {
-  const group = String(miner?.group || "").trim();
-  const automaticNames = ["", "ungrouped", "btc solo", "bch solo", "pool", "pool mining"];
-  return automaticNames.includes(group.toLowerCase()) ? miningTargetLabel(miner?.mining_target) : group;
-}
-
-function groupTargetClass(group) {
-  const normalized = String(group || "").toLowerCase();
-  return normalized === "bch solo" ? "target-bch" : normalized === "pool mining" ? "target-pool" : normalized === "btc solo" ? "target-btc" : "";
-}
-
 function oddsHashrate(item) {
   const [value, unit] = compactHashrate(item?.miner_hashrate_ths ?? 0);
   const allocated = ["BTC", "BCH"].includes(String(item?.symbol || "").toUpperCase());
   return `${value} ${unit} ${allocated ? "assigned" : "fleet"}`;
-}
-
-function difficulty(value) {
-  if (value === null || value === undefined || value === "") return "—";
-  if (/[KMGTP]$/i.test(String(value).trim())) return String(value);
-  const parsed = Number(String(value).replaceAll(",", ""));
-  if (!Number.isFinite(parsed)) return String(value);
-  const units = [["P", 1e15], ["T", 1e12], ["G", 1e9], ["M", 1e6], ["K", 1e3]];
-  const unit = units.find(([, threshold]) => parsed >= threshold);
-  return unit ? `${number(parsed / unit[1], 2)}${unit[0]}` : number(parsed, 0);
-}
-
-function difficultyNumber(value) {
-  if (value === null || value === undefined || value === "") return null;
-  if (typeof value === "number") return Number.isFinite(value) && value > 0 ? value : null;
-  const text = String(value).trim().replaceAll(",", "");
-  const match = text.match(/^([0-9]*\.?[0-9]+)\s*([KMGTPE])?$/i);
-  if (!match) return null;
-  const multipliers = {K: 1e3, M: 1e6, G: 1e9, T: 1e12, P: 1e15, E: 1e18};
-  const parsed = Number(match[1]) * (multipliers[(match[2] || "").toUpperCase()] || 1);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
 function collectDifficultyRainValues() {
@@ -327,61 +251,6 @@ function updateDifficultyRain() {
   if (!difficultyRain.raf) difficultyRain.raf = requestAnimationFrame(drawDifficultyRain);
 }
 
-function percent(chance) {
-  if (chance === null || chance === undefined) return "—";
-  const value = chance * 100;
-  if (!value) return "0%";
-  if (value < 0.000001) return value.toExponential(2) + "%";
-  if (value < 0.01) return value.toFixed(6) + "%";
-  return value.toFixed(3) + "%";
-}
-
-function duration(days) {
-  if (!days) return "Never at 0 H/s";
-  if (days < 1) return `${number(days * 24, 1)} hours`;
-  if (days < 365) return `${number(days, 1)} days`;
-  if (days < 365000) return `${number(days / 365, 1)} years`;
-  return `${Number(days / 365).toExponential(2)} years`;
-}
-
-function uptime(seconds) {
-  if (seconds === null || seconds === undefined) return "—";
-  const days = Math.floor(seconds / 86400);
-  const hours = Math.floor((seconds % 86400) / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  return [days ? `${days}d` : "", hours ? `${hours}h` : "", `${minutes}m`].filter(Boolean).join(" ");
-}
-
-function appDate(value) {
-  if (!value) return null;
-  const text = String(value);
-  return new Date(/[zZ]|[+-]\d{2}:?\d{2}$/.test(text) ? text : `${text}Z`);
-}
-
-function appTime(value, options = {}) {
-  const date = appDate(value);
-  return date ? date.toLocaleTimeString([], options) : "--";
-}
-
-function highestTemp(miner) {
-  const values = Object.values(miner?.temps || {}).filter(value => value !== null);
-  return values.length ? Math.max(...values) : null;
-}
-
-function fanSummary(miner) {
-  const rpms = (miner?.fans || []).map(fan => Number(fan.rpm)).filter(Number.isFinite);
-  if (!rpms.length) return "Not reported";
-  if (rpms.length === 1) return `${number(rpms[0], 0)} RPM`;
-  return `${rpms.length} fans · ${number(Math.min(...rpms), 0)}–${number(Math.max(...rpms), 0)} RPM`;
-}
-
-function money(value) {
-  if (value === null || value === undefined) return "—";
-  const numeric = Number(value);
-  const digits = numeric > 0 && numeric < 0.01 ? 8 : numeric < 1000 ? 2 : 0;
-  return numeric.toLocaleString(undefined, {style: "currency", currency: "USD", maximumFractionDigits: digits});
-}
-
 function statusFor(id) {
   return state?.miners?.find(miner => miner.id === id) || null;
 }
@@ -394,6 +263,7 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 async function request(path, {method = "GET", body, retries = 8} = {}) {
   let lastError = null;
+  let lastStatus = null;
   const payload = body === undefined ? undefined : JSON.stringify(body);
   for (let attempt = 0; attempt <= retries; attempt += 1) {
     try {
@@ -405,6 +275,7 @@ async function request(path, {method = "GET", body, retries = 8} = {}) {
       });
       const data = await response.json().catch(() => ({}));
       if (response.ok) return data;
+      lastStatus = response.status;
       let message = data.detail || `Request failed (${response.status})`;
       if (Array.isArray(message)) message = message.map(item => item.msg).join(" · ");
       lastError = new Error(message);
@@ -415,6 +286,12 @@ async function request(path, {method = "GET", body, retries = 8} = {}) {
     if (attempt < retries) {
       await sleep(Math.min(7500, 400 + attempt * 650));
     }
+  }
+  if (lastStatus && [502, 503, 504].includes(lastStatus)) {
+    throw new Error(`PoCiSys backend is unavailable (${lastStatus}). Wait a few seconds, then retry. If it continues, open the Umbrel app logs.`);
+  }
+  if (lastError instanceof TypeError || /failed to fetch|networkerror/i.test(String(lastError?.message || ""))) {
+    throw new Error("PoCiSys could not be reached. Check that the app is running and this dashboard address is accessible.");
   }
   throw lastError || new Error("Request failed");
 }
@@ -571,14 +448,18 @@ function renderChipHealth(status) {
     return `<div class="empty compact-empty">Chip-level health is not reported by this firmware.</div>`;
   }
   return `<div class="chip-grid">${items.map(item => {
-    const count = item.chips_total ? `${number(item.chips_healthy, 0)} / ${number(item.chips_total, 0)} ASICs` : item.cores ? `${number(item.cores, 0)} cores reported` : "API health signal";
+    const count = item.chips_total ? `${number(item.chips_healthy, 0)} / ${number(item.chips_total, 0)} ASICs natively healthy` : item.cores ? `${number(item.cores, 0)} cores reported` : "API health signal";
     const hash = item.hashrate_ths == null ? "" : `${number(item.hashrate_ths, 2)} TH/s`;
     const temp = item.temperature_c == null ? "" : `${number(item.temperature_c)} C`;
     const cores = item.chips_total && item.cores ? `${number(item.cores, 0)} cores` : "";
     const errorPct = item.hardware_error_percent == null ? "" : `${number(item.hardware_error_percent, 2)}% errors`;
-    const meta = [count, cores, hash, temp, errorPct].filter(Boolean).join(" · ");
+    const score = item.minimum_score == null ? "" : `Minimum score ${number(item.minimum_score, 1)}/100`;
+    const scoreRule = item.low_score_count && item.score_threshold ? `warning below ${number(item.score_threshold, 0)}/100` : "";
+    const unknown = item.chips_unknown ? `${number(item.chips_unknown, 0)} unknown` : "";
+    const meta = [count, unknown, score, scoreRule, cores, hash, temp, errorPct].filter(Boolean).join(" · ");
     const itemState = String(item.status || "unknown").toLowerCase();
-    return `<article class="chip-card ${itemState}"><div><i></i><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(itemState)}</span></div><p>${escapeHtml(meta || "Telemetry unavailable / not supported")}</p>${item.hardware_errors != null ? `<small>${number(item.hardware_errors, 0)} hardware errors</small>` : ""}</article>`;
+    const stateLabel = itemState === "warning" && item.low_score_count ? "low score warning" : itemState;
+    return `<article class="chip-card ${itemState}"><div><i></i><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(stateLabel)}</span></div><p>${escapeHtml(meta || "Telemetry unavailable / not supported")}</p>${item.hardware_errors != null ? `<small>${number(item.hardware_errors, 0)} hardware errors</small>` : ""}</article>`;
   }).join("")}</div>`;
 }
 
@@ -587,7 +468,7 @@ function renderHealthDiagnostics(status) {
   const reasons = health.reasons || [];
   const diagnostics = health.diagnostics || [];
   const reasonMarkup = reasons.length ? `<div class="health-reasons">${reasons.map(item => `<article><strong>${escapeHtml(item.label)}</strong><span>${item.value == null ? "" : `Value ${escapeHtml(item.value)}`}${item.threshold == null ? "" : ` · Rule ${escapeHtml(item.threshold)}`}${item.source ? ` · ${escapeHtml(item.source)}` : ""}</span></article>`).join("")}</div>` : `<div class="empty compact-empty">No confirmed health faults.</div>`;
-  const diagnosticMarkup = diagnostics.length ? `<details class="health-diagnostics"><summary>Raw rule diagnostics</summary><div>${diagnostics.map(item => `<p><strong>${escapeHtml(item.signal || "signal")}</strong><span>${item.component ? `${escapeHtml(item.component)} · ` : ""}${item.value == null ? "N/A" : escapeHtml(item.value)}${item.threshold == null ? "" : ` · threshold ${escapeHtml(item.threshold)}`}${item.detail ? ` · ${escapeHtml(item.detail)}` : ""}</span></p>`).join("")}</div></details>` : "";
+  const diagnosticMarkup = diagnostics.length ? `<details class="health-diagnostics"><summary>Raw rule diagnostics</summary><div>${diagnostics.map(item => `<p><strong>${escapeHtml(item.signal || "signal")}</strong><span>${item.component ? `${escapeHtml(item.component)} · ` : ""}${item.value == null ? "N/A" : escapeHtml(item.value)}${item.threshold == null ? "" : ` · threshold ${escapeHtml(item.threshold)}`}${item.minimum_score == null ? "" : ` · minimum score ${escapeHtml(item.minimum_score)}/100`}${item.score_threshold == null ? "" : ` · score warning ${escapeHtml(item.score_threshold)}/100`}${item.low_score_count ? ` · ${escapeHtml(item.low_score_count)} low score` : ""}${item.unhealthy_chip_count ? ` · ${escapeHtml(item.unhealthy_chip_count)} native unhealthy` : ""}${item.detail ? ` · ${escapeHtml(item.detail)}` : ""}</span></p>`).join("")}</div></details>` : "";
   return `<div class="health-overview"><span class="health-state health-${escapeHtml(String(health.state || "Unknown").toLowerCase())}">${escapeHtml(health.state || "Unknown")}</span><small>Bad readings require confirmation; recovery requires two clean polls.</small></div>${reasonMarkup}${diagnosticMarkup}`;
 }
 
@@ -607,8 +488,9 @@ function luxosControlPanel(config, status) {
     const boardId = Number(board.board_id);
     const score = board.minimum_score == null ? "No score" : `Minimum score ${number(board.minimum_score, 1)}`;
     const chipText = board.chips_total ? `${number(board.chips_healthy, 0)} / ${number(board.chips_total, 0)} chips healthy` : "Chip count unavailable";
+    const boardClass = board.status === "healthy" ? "good" : board.status === "unhealthy" ? "bad" : "warn";
     return `<div class="control-board-row">
-      <div><strong>${escapeHtml(board.name || `Hashboard ${boardId + 1}`)}</strong><span class="${board.status === "warning" ? "warn" : "good"}">${escapeHtml(chipText)} · ${escapeHtml(score)}</span></div>
+      <div><strong>${escapeHtml(board.name || `Hashboard ${boardId + 1}`)}</strong><span class="${boardClass}">${escapeHtml(chipText)} · ${escapeHtml(score)}</span></div>
       <div class="control-board-actions"><button data-action="luxos-control" data-control-action="board_off" data-id="${config.id}" data-board="${boardId}" ${armed ? "" : "disabled"}>Turn off</button><button data-action="luxos-control" data-control-action="board_on" data-id="${config.id}" data-board="${boardId}" ${armed ? "" : "disabled"}>Start</button><button data-action="luxos-control" data-control-action="restart_board" data-id="${config.id}" data-board="${boardId}" ${armed ? "" : "disabled"}>Restart</button></div>
     </div>`;
   }).join("");
@@ -1086,7 +968,7 @@ function openMinerDialog(id = null) {
   setFormValue(form, "control_low_time", "16:00");
   setFormValue(form, "control_full_time", "21:00");
   setFormValue(form, "auto_recover_hashboards", false);
-  setFormValue(form, "chip_health_score_threshold", 90);
+  setFormValue(form, "chip_health_score_threshold", 0);
   $("#miner-test-result").innerHTML = "";
   $("#luxos-profile-result").innerHTML = "";
   if (id) {
@@ -1428,7 +1310,7 @@ $("#miner-form").addEventListener("submit", async event => {
     control_low_profile: form.elements.control_low_profile.value,
     control_full_profile: form.elements.control_full_profile.value,
     auto_recover_hashboards: form.elements.auto_recover_hashboards.checked,
-    chip_health_score_threshold: Number(form.elements.chip_health_score_threshold.value || 90),
+    chip_health_score_threshold: Number(form.elements.chip_health_score_threshold.value || 0),
   };
   const submit = $('button[type="submit"]', form);
   submit.disabled = true;

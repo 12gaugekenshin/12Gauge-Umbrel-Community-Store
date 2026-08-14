@@ -64,7 +64,7 @@ class HttpIntegrationTests(unittest.TestCase):
     def test_token_auth_and_mcp_tools_over_http(self):
         status, health = self.request("/health")
         self.assertEqual(status, 200)
-        self.assertEqual(health["version"], "1.8.1")
+        self.assertEqual(health["version"], "1.8.2")
 
         _, generated = self.request("/api/hermes/token", method="POST", body={})
         token = generated["token"]

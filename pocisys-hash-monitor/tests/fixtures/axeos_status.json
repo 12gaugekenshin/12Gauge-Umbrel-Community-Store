@@ -1,0 +1,20 @@
+{
+  "hashRate": 1275.5,
+  "expectedHashrate": 1300,
+  "temp": 55.2,
+  "vrTemp": 58.0,
+  "fanrpm": 5480,
+  "asicCount": 1,
+  "ASICModel": "BM1370",
+  "asicHealth": "healthy",
+  "errorPercentage": 0.12,
+  "stratumURL": "stratum+tcp://pool.example:3333",
+  "stratumConnected": true,
+  "stratumUser": "example.worker",
+  "sharesAccepted": 100,
+  "sharesRejected": 1,
+  "bestSessionDiff": 284550000,
+  "bestDiff": 8090000000,
+  "uptimeSeconds": 12345,
+  "version": "AxeOS fixture"
+}

@@ -8,6 +8,7 @@ from .discord import DiscordWebhook
 
 
 NERDQAXE_OFFLINE_GRACE_SECONDS = 180
+MAX_ALERT_COOLDOWN_KEYS = 512
 
 
 def _difficulty_number(value):
@@ -51,6 +52,19 @@ class AlertEngine:
         self.cooldown = self.config.get("app", {}).get("alert_cooldown_seconds", 600)
         self.offline_grace = self.config.get("app", {}).get("offline_alert_grace_seconds", 60)
         self.discord.config = self.config.get("discord", {})
+        valid = {
+            str(item.get("id") or f"{item.get('type', 'miner')}:{item.get('ip')}")
+            for item in self.config.get("miners", [])
+        }
+        self.previous = {key: value for key, value in self.previous.items() if key in valid}
+        self.best_diff = {key: value for key, value in self.best_diff.items() if key in valid}
+        self._prune_cooldowns()
+
+    def _prune_cooldowns(self):
+        if len(self.last_sent) <= MAX_ALERT_COOLDOWN_KEYS:
+            return
+        newest = sorted(self.last_sent.items(), key=lambda item: item[1], reverse=True)
+        self.last_sent = dict(newest[:MAX_ALERT_COOLDOWN_KEYS])
 
     def dashboard_link(self, path=""):
         app = self.config.get("app", {})
@@ -110,6 +124,7 @@ class AlertEngine:
         if not force and now - self.last_sent.get(key, -self.cooldown) < self.cooldown:
             return False
         self.last_sent[key] = now
+        self._prune_cooldowns()
         self._record(title, message, severity, source)
         if self.snooze_status()["snoozed"] and not bypass_snooze:
             self.discord_last_result = {"sent": False, "reason": "Routine Discord alerts are snoozed"}
@@ -228,7 +243,10 @@ class AlertEngine:
             chip_items = chip_health.get("items") or []
             chip_health_reported = bool(chip_health.get("reported") and chip_items)
             item_states = {str(item.get("status") or "unknown").lower() for item in chip_items}
-            chip_fault_confirmed = any(code.startswith(("chip_not_responding:", "chip_warning:")) for code in health_codes)
+            chip_fault_confirmed = any(
+                code.startswith(("chip_not_responding:", "chip_warning:", "chip_score_low:"))
+                for code in health_codes
+            )
             if chip_health_reported and chip_fault_confirmed:
                 chip_state = "degraded"
             elif chip_health_reported and "healthy" in item_states and not chip_fault_confirmed:
@@ -251,12 +269,29 @@ class AlertEngine:
                     healthy = item.get("chips_healthy")
                     total = item.get("chips_total")
                     count = f" ({healthy}/{total} ASICs)" if healthy is not None and total is not None else ""
-                    affected.append(f"{item.get('name') or 'Hashboard'}: {item.get('status') or 'warning'}{count}")
+                    low_scores = int(item.get("low_score_count") or 0)
+                    native_unhealthy = int(item.get("unhealthy_chip_count") or 0)
+                    if low_scores and not native_unhealthy:
+                        minimum = item.get("minimum_score")
+                        threshold = item.get("score_threshold")
+                        score = f", minimum {minimum:g}/100" if isinstance(minimum, (int, float)) else ""
+                        rule = f", threshold {threshold:g}/100" if isinstance(threshold, (int, float)) else ""
+                        affected.append(
+                            f"{item.get('name') or 'Hashboard'}: low chip score{count}{score}{rule}; "
+                            "LuxOS still reports the chip responsive"
+                        )
+                    else:
+                        affected.append(f"{item.get('name') or 'Hashboard'}: {item.get('status') or 'warning'}{count}")
                 detail = "\n".join(affected[:8]) or "LuxOS reported fewer healthy hashboards than expected."
+                score_only = bool(health_codes) and all(code.startswith("chip_score_low:") for code in health_codes)
                 await self.emit(
                     f"{miner_key}:chip-health",
-                    "WARN LuxOS Chip Health Low",
-                    f"{name}\n{detail}\nA board restart may be required if the fault persists.",
+                    "WARN LuxOS Chip Score Low" if score_only else "WARN LuxOS Chip Health Low",
+                    f"{name}\n{detail}\n" + (
+                        "Lower or disable the optional score threshold if this is normal for used hardware."
+                        if score_only else
+                        "A board restart may be required if the fault persists."
+                    ),
                     "warning", name, True, miner_url,
                 )
             elif (
