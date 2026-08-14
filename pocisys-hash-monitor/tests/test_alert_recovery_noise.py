@@ -12,6 +12,13 @@ def luxos_status(*, chip_status="warning", recovery_armed=True, pending=True, ob
         "online": True,
         "api_ok": True,
         "warnings": [],
+        "health": {
+            "state": "Warning" if chip_status == "warning" else "Healthy",
+            "reasons": ([
+                {"code": "hashrate_below_expected", "label": "Hashrate Below Expected"},
+                {"code": "chip_warning:Hashboard 1", "label": "Chip Telemetry Warning"},
+            ] if chip_status == "warning" else []),
+        },
         "hashrate_ths": 1.0,
         "expected_hashrate_ths": 10.0,
         "temps": {},
@@ -57,7 +64,7 @@ class AlertRecoveryNoiseTests(unittest.IsolatedAsyncioTestCase):
         status = luxos_status()
         await engine.evaluate_miner(status, {"id": "miner_1", "type": "luxos"})
         self.assertEqual(list(engine.alert_feed), [])
-        self.assertIn("Hashrate below threshold", status["warnings"])
+        self.assertIn("Hashrate Below Expected", status["warnings"])
         self.assertIn("LuxOS chip health degraded", status["warnings"])
         self.assertIn("Pool disconnected", status["warnings"])
 

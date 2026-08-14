@@ -8,10 +8,11 @@ from .ping import tcp_ping
 
 
 class MinerPoller:
-    def __init__(self, config: dict, alert_engine, status_enricher=None):
+    def __init__(self, config: dict, alert_engine, status_enricher=None, health_engine=None):
         self.config = config
         self.alert_engine = alert_engine
         self.status_enricher = status_enricher
+        self.health_engine = health_engine
         self.latest = {}
         self.last_poll = None
         self.running = False
@@ -42,6 +43,8 @@ class MinerPoller:
                 "difficulty": {"best_session": None, "best_all_time": None},
                 "uptime_seconds": None,
                 "firmware": None,
+                "hardware_errors": None,
+                "hardware_error_percent": None,
                 "blocks_found": 0,
                 "status": "Driver error",
                 "warnings": [str(exc)],
@@ -63,6 +66,8 @@ class MinerPoller:
         status["checked_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
         if self.status_enricher:
             status = self.status_enricher(status)
+        if self.health_engine:
+            status = self.health_engine.evaluate(status, miner)
         await self.alert_engine.evaluate_miner(status, miner)
         return miner, status
 

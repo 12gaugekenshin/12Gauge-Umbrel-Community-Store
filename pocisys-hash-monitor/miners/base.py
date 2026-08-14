@@ -102,8 +102,10 @@ class MinerDriver:
             "voltage_mv": None,
             "wifi_rssi": None,
             "hardware_errors": None,
+            "hardware_error_percent": None,
             "blocks_found": 0,
             "status": "Offline",
+            "health": {"state": "Offline", "reasons": [], "diagnostics": [], "transition": None},
             "warnings": [],
             "raw": {},
         }

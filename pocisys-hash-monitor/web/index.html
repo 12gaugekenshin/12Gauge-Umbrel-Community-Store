@@ -66,6 +66,11 @@
       </div>
       <section class="pool-section-head"><div><h2>Local Pool Monitor</h2><p>Connect a self-hosted Public Pool HTTP API or tail a mounted local pool log.</p></div><button class="primary" data-action="add-pool">+ Connect local pool</button></section>
       <div id="pool-management" class="management-grid"></div>
+      <section class="panel accepted-shares-panel">
+        <div class="panel-title"><div><h2>Last 10 Accepted Shares per Pool</h2><p>Actual accepted submissions only. Every pool is independently capped at ten persisted shares.</p></div><span class="pill">Bounded</span></div>
+        <div id="accepted-share-summary" class="share-summary-grid"></div>
+        <div id="accepted-share-feed" class="accepted-share-feed"></div>
+      </section>
       <section class="panel pool-connection-tool">
         <div class="panel-title"><div><h2>External Pool Connection Test</h2><p>Three lightweight TCP connection attempts from this UmbrelOS device. No login, subscription, credentials, or shares are sent.</p></div><span class="pill">30s hard cooldown</span></div>
         <div class="pool-test-controls"><label><span>Stratum endpoint</span><input id="pool-test-target" type="text" maxlength="320" placeholder="stratum+tcp://pool.example:3333" autocomplete="off" spellcheck="false"></label><button id="pool-test-button" class="primary" data-action="test-external-pool">Test connection</button></div>
@@ -303,7 +308,7 @@
         <div class="form-grid two">
           <label><span>Monitor name</span><input name="name" maxlength="80" placeholder="My Public Pool" required></label>
           <label><span>Connection type</span><select name="mode"><option value="public_pool_api">Self-hosted Public Pool API</option><option value="local_log">Mounted local log file</option></select></label>
-          <label class="full public-pool-field"><span>Self-hosted Public Pool API URL</span><div class="detect-row"><input name="api_url" maxlength="1024" placeholder="http://pool-host.local:2019"><button type="button" data-action="detect-public-pool">Auto-detect</button></div><small>Use the HTTP API for a pool you host/control. Do not paste an external stratum mining URL such as stratum+tcp://pool:3333.</small></label>
+          <label class="full public-pool-field"><span>Self-hosted Public Pool API URL</span><div class="detect-row"><input name="api_url" maxlength="1024" placeholder="http://umbrel.local:2020"><button type="button" data-action="detect-public-pool">Auto-detect</button></div><small>PoCiSys Public Pool Port uses HTTP port 2020; stock Public Pool commonly uses 2019. Do not paste a Stratum URL such as stratum+tcp://pool:3333.</small></label>
           <label class="full public-pool-field"><span>Bitcoin address <small>Optional</small></span><input name="bitcoin_address" maxlength="160" placeholder="Auto-detect from miner pool usernames"><small>Used only to show your workers on the self-hosted Public Pool API. Leave blank for automatic detection.</small></label>
           <label class="full local-log-field"><span>Mounted local pool log path</span><input name="log_path" maxlength="1024" placeholder="/var/log/public-pool/pool.log"><small>PoCiSys tails only new lines from this mounted file and keeps at most 50 matching events in memory.</small></label>
           <input name="type" type="hidden" value="public_pool">

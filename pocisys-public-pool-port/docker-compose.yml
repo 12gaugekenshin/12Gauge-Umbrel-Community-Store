@@ -7,11 +7,14 @@ services:
       APP_PORT: 8080
 
   dashboard:
-    image: ghcr.io/12gaugekenshin/pocisys-public-pool-port:v0.1.4@sha256:8842f8426fc01f2395b2bdaf483d13988e39b092c232ab932f08e2e96f180532
+    image: ghcr.io/12gaugekenshin/pocisys-public-pool-port:v0.1.5@sha256:9f3e56109794eba9626bf8b3557380ae92ccaa0190861a92c3f2c3d4780d2174
     restart: on-failure
     stop_grace_period: 20s
     depends_on:
       - server
+    ports:
+      # Read-only pool telemetry for PoCiSys Hash Monitor on the LAN host.
+      - "2020:8080/tcp"
     volumes:
       - ${APP_DATA_DIR}/data/dashboard:/data
       - ${APP_DATA_DIR}/data/public-pool:/pool-db:ro
@@ -34,6 +37,7 @@ services:
       POLL_INTERVAL_SECONDS: 15
       # Public Pool heartbeats active worker estimates about once per minute.
       WORKER_STALE_SECONDS: 150
+      SHARE_SUBMISSION_API_KEY: pocisys-local-accepted-share-v1
 
   server:
     image: ghcr.io/benjamin-wilson/public-pool:95565ee@sha256:3edffef3bbad23cbd46098904b22ba8a1c14c679ae90cf1e4d97ed98492bbab4
@@ -60,3 +64,9 @@ services:
       ENABLE_SOLO: "true"
       ENABLE_PROXY: "false"
       POOL_IDENTIFIER: PoCiSys Public Pool Port
+      # Public Pool calls the local dashboard only after it accepts a share.
+      # The dashboard independently calculates difficulty from the submitted header.
+      EXTERNAL_SHARE_SUBMISSION_ENABLED: "true"
+      SHARE_SUBMISSION_URL: http://dashboard:8080
+      SHARE_SUBMISSION_API_KEY: pocisys-local-accepted-share-v1
+      MINIMUM_DIFFICULTY: "1"

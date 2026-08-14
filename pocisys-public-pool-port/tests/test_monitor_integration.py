@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 import sqlite3
@@ -87,6 +88,29 @@ class MonitorIntegrationTests(unittest.TestCase):
         self.assertEqual(status["hashrateSource"], "active-worker-share-estimate")
         self.assertNotEqual(status["totalHashRate"], status["pool"]["totalHashRate"])
         self.assertEqual(status["candidates"][0]["status"], "mature")
+
+    def test_accepted_callback_calculates_difficulty_from_header(self):
+        values = {
+            "DATA_DIR": self.temp.name,
+            "PUBLIC_POOL_DB": self.pool_db,
+            "BITCOIN_RPC_URL": "http://127.0.0.1:1",
+        }
+        with patch.dict(os.environ, values, clear=False):
+            monitor = Monitor()
+            result = monitor.accept_share({
+                "header": GENESIS_BLOCK[:160],
+                "worker": "genesis-test",
+                "address": "1A1zP1",
+                "userAgent": "unit-test",
+                "externalPoolName": "PoCiSys",
+            })
+            shares = monitor.store.accepted_shares()
+        self.assertTrue(result["inserted"])
+        header = bytes.fromhex(GENESIS_BLOCK[:160])
+        target = int.from_bytes(hashlib.sha256(hashlib.sha256(header).digest()).digest(), "little")
+        expected_difficulty = 2.695953529101131e67 / target
+        self.assertAlmostEqual(result["calculatedDifficulty"], expected_difficulty, places=8)
+        self.assertEqual(shares[0]["worker"], "genesis-test")
 
 
 if __name__ == "__main__":

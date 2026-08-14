@@ -1,4 +1,5 @@
 import json
+import hashlib
 import logging
 import mimetypes
 import os
@@ -19,6 +20,8 @@ from .verification import confirmation_status, verify_proof
 LOG = logging.getLogger("pocisys.pool.port")
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 WEB_ROOT = ROOT / "web"
+MAX_SHARE_REQUEST_BYTES = 8 * 1024
+TRUE_DIFFICULTY_ONE = 2.695953529101131e67
 
 
 def env(name, default=""):
@@ -160,14 +163,47 @@ class Monitor:
             "port": int(env("STRATUM_PORT", "3333")),
             "poolName": env("POOL_DISPLAY_NAME", "PoCiSys Public Pool Port"),
         }
+        result["acceptedShares"] = self.store.accepted_shares()
+        result["shareFeed"] = {
+            "available": True,
+            "source": "verified-accepted-header",
+            "limit": 10,
+        }
         return result
+
+    def accept_share(self, payload):
+        if not isinstance(payload, dict):
+            raise ValueError("Share payload must be an object")
+        header_text = str(payload.get("header") or "").strip().lower()
+        if len(header_text) != 160:
+            raise ValueError("Accepted share header must be exactly 80 bytes")
+        try:
+            header = bytes.fromhex(header_text)
+        except ValueError as exc:
+            raise ValueError("Accepted share header is not valid hexadecimal") from exc
+        digest = hashlib.sha256(hashlib.sha256(header).digest()).digest()
+        target = int.from_bytes(digest, "little")
+        if target <= 0:
+            raise ValueError("Accepted share produced an invalid target")
+        difficulty = TRUE_DIFFICULTY_ONE / target
+        item = {
+            "received_at": int(time.time() * 1000),
+            "pool": str(payload.get("externalPoolName") or env("POOL_DISPLAY_NAME", "PoCiSys Public Pool Port"))[:80],
+            "worker": str(payload.get("worker") or "worker")[:128],
+            "address": str(payload.get("address") or "")[:160],
+            "user_agent": str(payload.get("userAgent") or "")[:160],
+            "difficulty": difficulty,
+            "header_hash": digest.hex(),
+        }
+        inserted = self.store.accepted_share(item)
+        return {"success": True, "inserted": inserted, "calculatedDifficulty": difficulty}
 
 
 MONITOR = None
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "PoCiSysPoolPort/0.1"
+    server_version = "PoCiSysPoolPort/0.1.5"
 
     def log_message(self, fmt, *args):
         LOG.info("%s - %s", self.address_string(), fmt % args)
@@ -191,6 +227,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.json_response(MONITOR.store.candidates())
         if parsed.path == "/api/events":
             return self.json_response(MONITOR.store.events())
+        if parsed.path == "/api/shares":
+            return self.json_response(MONITOR.store.accepted_shares())
         if parsed.path == "/api/history":
             hours = min(2160, max(1, int(parse_qs(parsed.query).get("hours", [24])[0])))
             return self.json_response(MONITOR.store.history(int(time.time()) - hours * 3600))
@@ -206,6 +244,25 @@ class Handler(BaseHTTPRequestHandler):
                 ]
             })
         return self.serve_static(parsed.path)
+
+    def do_POST(self):
+        parsed = urlparse(self.path)
+        if parsed.path != "/api/share":
+            return self.json_response({"error": "Not found"}, 404)
+        expected_token = env("SHARE_SUBMISSION_API_KEY")
+        if expected_token and self.headers.get("x-api-key") != expected_token:
+            return self.json_response({"error": "Invalid callback token"}, 401)
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            length = 0
+        if length <= 0 or length > MAX_SHARE_REQUEST_BYTES:
+            return self.json_response({"error": "Invalid share request size"}, 413)
+        try:
+            payload = json.loads(self.rfile.read(length).decode("utf-8"))
+            return self.json_response(MONITOR.accept_share(payload), 201)
+        except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+            return self.json_response({"error": str(exc)}, 400)
 
     def serve_static(self, path):
         relative = "index.html" if path in ("", "/") else path.lstrip("/")

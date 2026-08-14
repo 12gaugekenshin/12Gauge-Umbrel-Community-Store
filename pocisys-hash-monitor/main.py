@@ -23,6 +23,7 @@ from services.hermes_mcp import (
     token_digest,
     token_matches,
 )
+from services.health import HealthEngine
 from services.network_data import NetworkDataService
 from services.odds import calculate_odds
 from services.poller import MinerPoller
@@ -32,7 +33,7 @@ from services.system_stats import SystemStatsService
 from services.luxos_control import LuxOSControlError, LuxOSControlService
 
 
-APP_VERSION = "1.7.1"
+APP_VERSION = "1.8.0"
 ROOT = Path(__file__).resolve().parent
 WEB_ROOT = ROOT / "web"
 CONFIG_PATH = Path(os.environ.get("POCISYS_CONFIG_PATH", ROOT / "config.json")).resolve()
@@ -186,10 +187,17 @@ if not CONFIG_PATH.exists():
 
 config = load_config(CONFIG_PATH)
 alerts = AlertEngine(config)
+health_engine = HealthEngine()
 luxos_control = LuxOSControlService(config, alerts)
-poller = MinerPoller(config, alerts, luxos_control.enrich_status)
-pool_logs = PoolLogService(config.get("pools", []), alerts, poller.statuses)
 network_data = NetworkDataService()
+poller = MinerPoller(config, alerts, luxos_control.enrich_status, health_engine)
+pool_logs = PoolLogService(
+    config.get("pools", []),
+    alerts,
+    poller.statuses,
+    CONFIG_PATH.parent / "accepted-shares.json",
+    network_data.snapshot,
+)
 pool_probe = PoolConnectionProbe()
 system_stats = SystemStatsService()
 config_lock = asyncio.Lock()
@@ -203,6 +211,7 @@ def commit_config(updated):
         luxos_control.reconfigure()
         pool_logs.reconfigure(config["pools"])
         poller.reconfigure()
+        health_engine.reconfigure(config["miners"])
     except Exception as exc:
         print(f"PoCiSys warning: saved config but service reconfigure failed: {exc}", flush=True)
     print(
@@ -365,7 +374,7 @@ async def discover_public_pool(host=None):
             hosts.append(parsed.hostname)
     attempts = []
     for candidate_host in hosts[:20]:
-        for port in (2019, 3334, 40557):
+        for port in (2020, 2019, 40557):
             candidate = f"http://{candidate_host}:{port}"
             attempts.append(candidate)
             try:
@@ -407,6 +416,7 @@ async def api_dispatch(method, path, data):
             "pools": pool_statuses,
             "pool_event_count": len(pool_logs.events),
             "control": luxos_control.status(),
+            "health": health_engine.status(),
             "ui": {
                 "dashboard_density": config.get("app", {}).get("dashboard_density", "comfortable"),
                 "difficulty_rain_enabled": config.get("app", {}).get("difficulty_rain_enabled", True),
@@ -582,6 +592,8 @@ async def api_dispatch(method, path, data):
             return {"ok": True}
     if method == "GET" and path == "/api/pool-events":
         return {"events": list(pool_logs.events)}
+    if method == "GET" and path == "/api/health-transitions":
+        return health_engine.status()
     if method == "GET" and path == "/api/pool-connection-test":
         return pool_probe.snapshot()
     if method == "POST" and path == "/api/pool-connection-test":

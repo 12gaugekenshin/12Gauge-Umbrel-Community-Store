@@ -224,13 +224,19 @@ class CgminerDriver(MinerDriver):
 
         chip_items = []
         for index, device in enumerate(devices):
-            status = str(_field(device, "Status", default="Alive"))
+            status = str(_field(device, "Status", default="unknown"))
             temp = number(_field(device, "Temperature", "Temp", "Chip Temp"))
-            healthy = status.lower() in {"alive", "enabled", "active", "running", "true", "1"}
+            normalized_status = status.lower()
+            if normalized_status in {"alive", "enabled", "active", "running", "true", "1"}:
+                health_state = "healthy"
+            elif normalized_status in {"dead", "failed", "missing", "disabled", "false", "0"}:
+                health_state = "unhealthy"
+            else:
+                health_state = "unknown"
             chip_items.append({
                 "name": _field(device, "Name", "ID", default=f"Chain {index + 1}"),
-                "status": "healthy" if healthy else "warning",
-                "chips_healthy": 1 if healthy else 0,
+                "status": health_state,
+                "chips_healthy": 1 if health_state == "healthy" else 0 if health_state == "unhealthy" else None,
                 "chips_total": 1,
                 "temperature_c": temp if temp and 0 < temp < 150 else None,
                 "hashrate_ths": _hashrate_from(device),
@@ -238,6 +244,7 @@ class CgminerDriver(MinerDriver):
             })
 
         healthy_count = sum(1 for item in chip_items if item["status"] == "healthy")
+        known_count = sum(1 for item in chip_items if item["status"] != "unknown")
         result.update(
             online=True,
             api_ok=True,
@@ -246,7 +253,7 @@ class CgminerDriver(MinerDriver):
             temps={"asic_c": highest_temp, "vrm_c": None, "board_c": None, "chip_c": None},
             chip_health={
                 "reported": bool(chip_items),
-                "healthy": healthy_count if chip_items else None,
+                "healthy": healthy_count if known_count else None,
                 "total": len(chip_items) if chip_items else None,
                 "items": chip_items,
             },

@@ -31,20 +31,35 @@ class AxeOSDriver(MinerDriver):
         asic_count = max(1, min(asic_count, 64))
         asic_temps = first(data, "asicTemps", default=[])
         asic_temps = asic_temps if isinstance(asic_temps, list) else []
-        error_percent = number(first(data, "errorPercentage"), 0) or 0
+        error_percent = number(first(data, "errorPercentage"), None)
         model = first(data, "ASICModel", "asicModel", default="ASIC")
+        explicit_health = first(data, "asicHealth", "chipHealth", "asicStatus", "chipStatus")
+        if isinstance(explicit_health, bool):
+            explicit_state = "healthy" if explicit_health else "unhealthy"
+        elif isinstance(explicit_health, (str, int, float)):
+            text = str(explicit_health).strip().lower()
+            if text in {"healthy", "alive", "ok", "running", "true", "1"}:
+                explicit_state = "healthy"
+            elif text in {"unhealthy", "dead", "failed", "missing", "false", "0"}:
+                explicit_state = "unhealthy"
+            elif text in {"warning", "degraded"}:
+                explicit_state = "warning"
+            else:
+                explicit_state = "unknown"
+        else:
+            explicit_state = "unknown"
         chip_items = []
         for index in range(asic_count):
             chip_temp = number(asic_temps[index]) if index < len(asic_temps) else None
-            healthy = error_percent < 5
             chip_items.append({
                 "name": f"{model} #{index + 1}" if asic_count > 1 else str(model),
-                "status": "healthy" if healthy else "warning",
-                "chips_healthy": 1 if healthy else 0,
+                "status": explicit_state,
+                "chips_healthy": 1 if explicit_state == "healthy" else 0 if explicit_state == "unhealthy" else None,
                 "chips_total": 1,
                 "temperature_c": chip_temp if chip_temp and chip_temp > 0 else None,
                 "hardware_error_percent": error_percent,
                 "cores": integer(first(data, "smallCoreCount"), None) if asic_count == 1 else None,
+                "source": "explicit ASIC health field" if explicit_state != "unknown" else "AxeOS telemetry (health unsupported)",
             })
 
         result.update(
@@ -61,7 +76,7 @@ class AxeOSDriver(MinerDriver):
             },
             chip_health={
                 "reported": True,
-                "healthy": asic_count if error_percent < 5 else 0,
+                "healthy": asic_count if explicit_state == "healthy" else 0 if explicit_state == "unhealthy" else None,
                 "total": asic_count,
                 "items": chip_items,
             },
@@ -92,6 +107,7 @@ class AxeOSDriver(MinerDriver):
             frequency_mhz=number(first(data, "frequency", "frequencyMHz")),
             voltage_mv=number(first(data, "coreVoltage", "voltage", "voltageMv")),
             wifi_rssi=number(first(data, "wifiRSSI", "rssi", "wifiSignal")),
+            hardware_error_percent=error_percent,
             blocks_found=integer(first(data, "blockFound"), 0),
             status=str(first(data, "status", "state", default="Healthy")),
             raw=data,

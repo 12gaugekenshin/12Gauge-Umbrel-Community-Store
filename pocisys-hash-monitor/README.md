@@ -16,7 +16,9 @@ Non-LuxOS miners always remain read-only.
 
 ## Optional setup
 
-- Add your local Public Pool URL for pool worker and share data.
+- Add a stock Public Pool API or PoCiSys Public Pool Port URL for pool worker
+  data. PoCiSys Public Pool Port uses `http://<umbrel-ip>:2020` and supplies
+  exact accepted-share difficulty.
 - Add a Discord webhook for outage, recovery, temperature, hashrate, pool,
   share-quality, best-difficulty, and block alerts.
 - Enable the authenticated read-only MCP connection if Hermes should answer
@@ -31,17 +33,20 @@ screen.
 
 ## Storage and privacy
 
-The app stores only its small configuration file. Current telemetry is kept in
-bounded memory; there is no growing long-term hashrate database. Miner controls,
-wallet data, and shell access are not exposed through MCP. Recent LuxOS control
-activity is also held in a fixed-size in-memory queue.
+The app stores its small configuration plus at most ten accepted-share records
+per configured pool. Current miner telemetry is kept in bounded memory; there is
+no growing long-term hashrate database. Miner controls, wallet data, and shell
+access are not exposed through MCP. Recent LuxOS control activity and health
+transitions are held in fixed-size in-memory queues.
 
-## Latest release — v1.7.1
+## Latest release — v1.8.0
 
-Debounces temporary LuxOS chip-health warnings and limits an automatic board
-recovery incident to one confirmed-fault alert plus one observed outcome. Routine
-restart noise is suppressed, and the miner editor now separates curtailment from
-hashboard health and recovery.
+Adds a combined color-coded accepted-share feed with an independent hard limit
+of ten shares per pool, exact submitted difficulty, BTC network percentage,
+elapsed time, and bounded restart persistence. Health classification now uses
+firmware-aware telemetry, consecutive bad readings, recovery hysteresis, five
+explicit states, and visible raw rule diagnostics. Unknown or unsupported data
+is never treated as failed hardware.
 
 Source and support: [PoCiSys Hash Monitor on GitHub](https://github.com/12gaugekenshin/PoCi-Hash-Monitor)
 

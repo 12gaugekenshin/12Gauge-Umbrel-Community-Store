@@ -24,7 +24,15 @@ CREATE TABLE IF NOT EXISTS events (
   kind TEXT NOT NULL, message TEXT NOT NULL, details TEXT
 );
 CREATE INDEX IF NOT EXISTS events_time ON events(created_at);
+CREATE TABLE IF NOT EXISTS accepted_shares (
+  id INTEGER PRIMARY KEY, received_at INTEGER NOT NULL, pool TEXT NOT NULL,
+  worker TEXT NOT NULL, address TEXT, user_agent TEXT,
+  difficulty REAL NOT NULL, header_hash TEXT NOT NULL UNIQUE
+);
+CREATE INDEX IF NOT EXISTS accepted_shares_time ON accepted_shares(received_at);
 """
+
+MAX_ACCEPTED_SHARES_PER_POOL = 10
 
 
 class Store:
@@ -99,3 +107,37 @@ class Store:
                 item["details"] = json.loads(item["details"] or "{}")
                 result.append(item)
             return result
+
+    def accepted_share(self, item):
+        """Persist one verified accepted share and keep only ten per pool."""
+        with self.lock, closing(self._connect()) as db, db:
+            cursor = db.execute(
+                """
+                INSERT OR IGNORE INTO accepted_shares(
+                  received_at,pool,worker,address,user_agent,difficulty,header_hash
+                ) VALUES(:received_at,:pool,:worker,:address,:user_agent,:difficulty,:header_hash)
+                """,
+                item,
+            )
+            db.execute(
+                """
+                DELETE FROM accepted_shares
+                WHERE pool=? AND id NOT IN (
+                  SELECT id FROM accepted_shares WHERE pool=?
+                  ORDER BY received_at DESC,id DESC LIMIT ?
+                )
+                """,
+                (item["pool"], item["pool"], MAX_ACCEPTED_SHARES_PER_POOL),
+            )
+            return cursor.rowcount > 0
+
+    def accepted_shares(self, limit=MAX_ACCEPTED_SHARES_PER_POOL):
+        limit = max(1, min(int(limit), MAX_ACCEPTED_SHARES_PER_POOL))
+        with closing(self._connect()) as db:
+            return [dict(row) for row in db.execute(
+                """
+                SELECT id,received_at,pool,worker,address,user_agent,difficulty,header_hash
+                FROM accepted_shares ORDER BY received_at DESC,id DESC LIMIT ?
+                """,
+                (limit,),
+            )]

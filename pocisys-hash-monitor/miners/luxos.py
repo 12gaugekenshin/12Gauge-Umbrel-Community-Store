@@ -118,10 +118,16 @@ class LuxOSDriver(MinerDriver):
             device_status = str(device.get("Status") or "unknown")
             chain_faults = _positive_values(stats, rf"chain_hw{chain}")
             missing_chips = good_chips is not None and total_chips is not None and good_chips < total_chips
-            healthy = device_status.lower() == "alive" and not chain_faults and not missing_chips
+            normalized_status = device_status.lower()
+            if missing_chips or normalized_status in {"dead", "failed", "missing", "false", "0"}:
+                health_state = "unhealthy"
+            elif normalized_status in {"alive", "enabled", "active", "running", "true", "1"}:
+                health_state = "healthy"
+            else:
+                health_state = "unknown"
             chip_items.append({
                 "name": f"Hashboard {chain}",
-                "status": "healthy" if healthy else "warning",
+                "status": health_state,
                 "chips_healthy": good_chips,
                 "chips_total": total_chips,
                 "temperature_c": number(device.get("Temperature")),
@@ -130,9 +136,12 @@ class LuxOSDriver(MinerDriver):
                     "mhs" if device.get("MHS 5s") is not None else "ghs",
                 ),
                 "hardware_errors": integer(device.get("Hardware Errors"), 0),
+                "hardware_error_counter": sum(value for _, value in chain_faults),
                 "board": device.get("Board"),
+                "source": "LuxOS DEVS and chain ASIC map",
             })
         healthy_boards = sum(1 for item in chip_items if item["status"] == "healthy")
+        known_boards = sum(1 for item in chip_items if item["status"] != "unknown")
 
         result.update(
             online=True,
@@ -148,7 +157,7 @@ class LuxOSDriver(MinerDriver):
             },
             chip_health={
                 "reported": bool(chip_items),
-                "healthy": healthy_boards if chip_items else None,
+                "healthy": healthy_boards if known_boards else None,
                 "total": len(chip_items) if chip_items else None,
                 "items": chip_items,
             },

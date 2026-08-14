@@ -28,6 +28,25 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(self.store.candidates()[0]["confirmations"], 6)
         self.assertEqual(len(self.store.events()), 2)
 
+    def test_accepted_shares_are_deduplicated_and_bounded_to_ten(self):
+        for index in range(12):
+            item = {
+                "received_at": 1000 + index,
+                "pool": "PoCiSys",
+                "worker": f"worker-{index % 2}",
+                "address": "bc1qtest",
+                "user_agent": "test",
+                "difficulty": float(index + 1),
+                "header_hash": f"{index:064x}",
+            }
+            self.assertTrue(self.store.accepted_share(item))
+        duplicate = dict(item)
+        self.assertFalse(self.store.accepted_share(duplicate))
+        shares = self.store.accepted_shares()
+        self.assertEqual(len(shares), 10)
+        self.assertEqual(shares[0]["difficulty"], 12.0)
+        self.assertEqual(shares[-1]["difficulty"], 3.0)
+
 
 if __name__ == "__main__":
     unittest.main()

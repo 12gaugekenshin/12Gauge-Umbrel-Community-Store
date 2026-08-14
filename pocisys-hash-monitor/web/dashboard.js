@@ -452,8 +452,8 @@ function minerCard(miner) {
   const temp = highestTemp(miner);
   const fans = fanSummary(miner);
   const badShares = ["invalid", "stale", "rejected"].reduce((sum, key) => sum + (miner.shares?.[key] || 0), 0);
-  const healthy = miner.online && miner.api_ok;
-  return `<article class="miner-card ${healthy ? "online" : "offline"}" data-action="open-miner" data-id="${escapeHtml(miner.id)}" tabindex="0">
+  const healthState = miner.health?.state || (miner.online && miner.api_ok ? "Unknown" : "Offline");
+  return `<article class="miner-card health-${escapeHtml(healthState.toLowerCase())} ${miner.online && miner.api_ok ? "online" : "offline"}" data-action="open-miner" data-id="${escapeHtml(miner.id)}" tabindex="0">
     <div class="card-glow"></div>
     <div class="miner-head"><i class="status-dot"></i><div class="miner-title"><strong>${escapeHtml(miner.name)}</strong><small>${privateMarkup(miner.ip)}</small></div><span class="type-badge">${escapeHtml(minerTypeLabel(miner.type))}</span></div>
     <div class="hashrate"><strong>${hash}</strong><span>${unit}</span><small>${escapeHtml(miner.group)}</small></div>
@@ -467,7 +467,7 @@ function minerCard(miner) {
       <div class="detail"><label>Best session</label><span title="${escapeHtml(miner.difficulty?.best_session)}">${escapeHtml(difficulty(miner.difficulty?.best_session))}</span></div>
       <div class="detail"><label>Best all-time</label><span title="${escapeHtml(miner.difficulty?.best_all_time)}">${escapeHtml(difficulty(miner.difficulty?.best_all_time))}</span></div>
     </div>
-    <div class="card-foot"><span>${healthy ? "Healthy" : escapeHtml(miner.status)}</span><strong>View details →</strong></div>
+    <div class="card-foot"><span>${escapeHtml(healthState)}</span><strong>View details →</strong></div>
     ${(miner.warnings || []).length ? `<div class="warning-strip">${escapeHtml(miner.warnings[0])}</div>` : ""}
   </article>`;
 }
@@ -550,8 +550,18 @@ function renderChipHealth(status) {
     const cores = item.chips_total && item.cores ? `${number(item.cores, 0)} cores` : "";
     const errorPct = item.hardware_error_percent == null ? "" : `${number(item.hardware_error_percent, 2)}% errors`;
     const meta = [count, cores, hash, temp, errorPct].filter(Boolean).join(" · ");
-    return `<article class="chip-card ${item.status === "healthy" ? "healthy" : "warning"}"><div><i></i><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(item.status || "reported")}</span></div><p>${escapeHtml(meta)}</p>${item.hardware_errors != null ? `<small>${number(item.hardware_errors, 0)} hardware errors</small>` : ""}</article>`;
+    const itemState = String(item.status || "unknown").toLowerCase();
+    return `<article class="chip-card ${itemState}"><div><i></i><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(itemState)}</span></div><p>${escapeHtml(meta || "Telemetry unavailable / not supported")}</p>${item.hardware_errors != null ? `<small>${number(item.hardware_errors, 0)} hardware errors</small>` : ""}</article>`;
   }).join("")}</div>`;
+}
+
+function renderHealthDiagnostics(status) {
+  const health = status?.health || {};
+  const reasons = health.reasons || [];
+  const diagnostics = health.diagnostics || [];
+  const reasonMarkup = reasons.length ? `<div class="health-reasons">${reasons.map(item => `<article><strong>${escapeHtml(item.label)}</strong><span>${item.value == null ? "" : `Value ${escapeHtml(item.value)}`}${item.threshold == null ? "" : ` · Rule ${escapeHtml(item.threshold)}`}${item.source ? ` · ${escapeHtml(item.source)}` : ""}</span></article>`).join("")}</div>` : `<div class="empty compact-empty">No confirmed health faults.</div>`;
+  const diagnosticMarkup = diagnostics.length ? `<details class="health-diagnostics"><summary>Raw rule diagnostics</summary><div>${diagnostics.map(item => `<p><strong>${escapeHtml(item.signal || "signal")}</strong><span>${item.component ? `${escapeHtml(item.component)} · ` : ""}${item.value == null ? "N/A" : escapeHtml(item.value)}${item.threshold == null ? "" : ` · threshold ${escapeHtml(item.threshold)}`}${item.detail ? ` · ${escapeHtml(item.detail)}` : ""}</span></p>`).join("")}</div></details>` : "";
+  return `<div class="health-overview"><span class="health-state health-${escapeHtml(String(health.state || "Unknown").toLowerCase())}">${escapeHtml(health.state || "Unknown")}</span><small>Bad readings require confirmation; recovery requires two clean polls.</small></div>${reasonMarkup}${diagnosticMarkup}`;
 }
 
 function luxosControlPanel(config, status) {
@@ -599,7 +609,8 @@ function renderMinerDetail(id) {
     return;
   }
   const status = statusFor(id);
-  const healthy = status?.api_ok;
+  const healthState = status?.health?.state || (status?.api_ok ? "Unknown" : "Offline");
+  const healthy = healthState === "Healthy";
   const [hash, unit] = compactHashrate(status?.hashrate_ths);
   const temps = status?.temps || {};
   const shares = status?.shares || {};
@@ -613,7 +624,7 @@ function renderMinerDetail(id) {
     <div class="detail-actions"><a class="button-link" href="http://${escapeHtml(config.ip)}" target="_blank" rel="noopener">Open native dashboard ↗</a><button data-action="edit-miner" data-id="${config.id}">Edit setup</button></div>
   </div>
   <section class="miner-hero ${healthy ? "online" : "offline"}">
-    <div class="hero-grid"></div><div class="hero-ident"><span class="hero-status"><i class="status-dot"></i>${!config.enabled ? "Monitoring disabled" : healthy ? "Live and healthy" : status?.status || "Waiting for miner"}</span><p class="eyebrow">${escapeHtml(config.group)}</p><h1>${escapeHtml(config.name)}</h1><p>${privateMarkup(config.ip)} · ${escapeHtml(minerTypeLabel(config.type))} · ${escapeHtml(status?.firmware || "Firmware unavailable")}</p></div>
+    <div class="hero-grid"></div><div class="hero-ident"><span class="hero-status"><i class="status-dot"></i>${!config.enabled ? "Monitoring disabled" : `Live · ${escapeHtml(healthState)}`}</span><p class="eyebrow">${escapeHtml(config.group)}</p><h1>${escapeHtml(config.name)}</h1><p>${privateMarkup(config.ip)} · ${escapeHtml(minerTypeLabel(config.type))} · ${escapeHtml(status?.firmware || "Firmware unavailable")}</p></div>
     <div class="hero-hash"><strong>${hash}</strong><span>${unit}</span><small>Current hashrate</small></div>
   </section>
   <div class="detail-stat-grid">
@@ -637,7 +648,7 @@ function renderMinerDetail(id) {
       ${temperatureItems.length ? `<div class="sensor-grid">${temperatureItems.map(([label, value]) => detailStat(label, `${number(value)} C`)).join("")}</div>` : `<div class="empty compact-empty">No temperature sensors reported.</div>`}
       ${status?.fans?.length ? `<div class="fan-grid">${status.fans.map(fan => `<div><span>${escapeHtml(fan.name)}</span><strong>${number(fan.rpm, 0)} RPM</strong></div>`).join("")}</div>` : ""}
       <div class="threshold-note">Alerts at ${number(config.temp_warning_c)} C · Critical at ${number(config.temp_critical_c)} C</div></section>
-    <section class="panel chip-health-panel"><div class="panel-title"><h2>Chip health</h2><span class="pill">${status?.chip_health?.reported ? `${number(status.chip_health.healthy, 0)} / ${number(status.chip_health.total, 0)} healthy` : "Not reported"}</span></div>${renderChipHealth(status)}</section>
+    <section class="panel chip-health-panel"><div class="panel-title"><h2>Miner & chip health</h2><span class="pill">${status?.chip_health?.reported && status.chip_health.healthy != null ? `${number(status.chip_health.healthy, 0)} / ${number(status.chip_health.total, 0)} healthy` : "Unknown / N/A"}</span></div>${renderHealthDiagnostics(status)}${renderChipHealth(status)}</section>
     ${luxosControlPanel(config, status)}
     <section class="panel"><div class="panel-title"><h2>Pool</h2><span class="${status?.pool?.connected ? "good" : "warn"}">${escapeHtml(status?.pool?.status)}</span></div><div class="pool-url">${privateMarkup(status?.pool?.url || "Pool URL not reported")}</div><div class="info-list"><div><span>Connection</span><strong>${status?.pool?.connected == null ? "Unknown" : status.pool.connected ? "Connected" : "Disconnected"}</strong></div>${infoRow("Source", status?.pool?.source)}<div><span>Valid shares</span><strong>${number(shares.valid || 0, 0)}</strong></div></div></section>
     <section class="panel"><div class="panel-title"><h2>Share quality</h2></div><div class="sensor-grid">${detailStat("Valid", number(shares.valid || 0, 0))}${detailStat("Invalid", number(shares.invalid || 0, 0))}${detailStat("Stale", number(shares.stale || 0, 0))}${detailStat("Rejected", number(shares.rejected || 0, 0))}</div></section>
@@ -697,6 +708,46 @@ function renderManagedPools() {
     const stats = pool.mode === "public_pool_api" && live?.available ? `<div class="pool-live-stats"><span><small>Pool hashrate</small><strong>${number(live.total_hashrate_ths, 2)} TH/s</strong></span><span><small>Connected miners</small><strong>${number(live.total_miners, 0)}</strong></span><span><small>Block height</small><strong>${number(live.block_height, 0)}</strong></span><span><small>Your workers</small><strong>${live.workers_count == null ? "Address not detected" : number(live.workers_count, 0)}</strong></span></div>${live.workers?.length ? `<div class="worker-list">${live.workers.map(worker => `<div><strong>${escapeHtml(worker.name)}</strong><span>${number(worker.hashrate_ths, 2)} TH/s</span><span>Best ${difficulty(worker.best_difficulty)}</span></div>`).join("")}</div>` : ""}` : "";
     return `<article class="manage-card ${pool.mode === "public_pool_api" ? "public-pool-card" : ""}"><div class="manage-card-top"><span class="settings-icon">${pool.mode === "public_pool_api" ? "P" : "≋"}</span><div><h2>${escapeHtml(pool.name)}</h2><p>${pool.mode === "public_pool_api" ? "Self-hosted Public Pool · live API" : `${escapeHtml(pool.type)} · mounted local log`}</p></div><span class="pill ${live?.available ? "good-border" : "bad-border"}">${!pool.enabled ? "Disabled" : live?.available ? "Connected" : "Unavailable"}</span></div><div class="path-box">${privateMarkup(source)}</div>${stats}<div class="manage-card-actions"><button data-action="edit-pool" data-id="${pool.id}">Edit</button><button class="danger-text" data-action="delete-pool" data-id="${pool.id}">Delete</button></div></article>`;
   }).join("");
+}
+
+const POOL_COLORS = ["#4fd6c8", "#6ea8ff", "#f4c15d", "#b889ff", "#ff7c8d", "#76d66d", "#ff9f5b", "#66c7ff"];
+
+function elapsedShare(seconds) {
+  if (seconds == null) return "First retained share";
+  if (seconds < 1) return "Same second";
+  if (seconds < 60) return `${number(seconds, 1)}s after prior`;
+  if (seconds < 3600) return `${number(seconds / 60, 1)}m after prior`;
+  return `${number(seconds / 3600, 1)}h after prior`;
+}
+
+function shareNetworkPercent(value) {
+  if (value == null) return "Network % N/A";
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed === 0) return "0% of network";
+  if (parsed < 0.000001) return `${parsed.toExponential(2)}% of network`;
+  if (parsed < 0.01) return `${parsed.toFixed(8)}% of network`;
+  return `${parsed.toFixed(4)}% of network`;
+}
+
+function renderAcceptedShares() {
+  const pools = (state?.pools || []).filter(pool => pool.mode === "public_pool_api");
+  const entries = [];
+  const summaries = [];
+  pools.forEach((pool, poolIndex) => {
+    const color = POOL_COLORS[poolIndex % POOL_COLORS.length];
+    const shares = pool.accepted_shares || [];
+    summaries.push(`<article style="--pool-color:${color}"><header><i></i><strong>${escapeHtml(pool.name)}</strong><span>${shares.length}/10</span></header><dl><div><dt>Average last 10</dt><dd>${difficulty(pool.average_share_difficulty)}</dd></div><div><dt>Session best</dt><dd>${difficulty(pool.session_best_difficulty)}</dd></div><div><dt>All-time best</dt><dd>${difficulty(pool.all_time_best_difficulty)}</dd></div><div><dt>BTC network</dt><dd>${difficulty(pool.network_difficulty)}</dd></div></dl><small>${escapeHtml(pool.share_feed_message || (pool.share_feed_available ? "Actual accepted submissions" : "Accepted-share feed unavailable"))}</small></article>`);
+    shares.forEach(share => entries.push({pool, color, share}));
+  });
+  entries.sort((left, right) => Number(right.share.timestamp_ms || 0) - Number(left.share.timestamp_ms || 0) || String(right.share.id).localeCompare(String(left.share.id)));
+  const summary = $("#accepted-share-summary");
+  const feed = $("#accepted-share-feed");
+  if (!summary || !feed) return;
+  summary.innerHTML = summaries.join("") || `<div class="empty compact-empty">Connect a self-hosted Public Pool API to begin.</div>`;
+  feed.innerHTML = entries.length ? entries.map(({pool, color, share}) => {
+    const highest = share.id === pool.highest_recent_share_id;
+    return `<article class="accepted-share-row ${highest ? "highest" : ""}" style="--pool-color:${color}"><i></i><time>${appTime(share.time)}</time><span class="pool-share-name">${escapeHtml(pool.name)}</span><strong>${escapeHtml(share.worker)}</strong><span class="share-difficulty">${difficulty(share.difficulty)}</span><span>${shareNetworkPercent(share.network_percent)}</span><small>${escapeHtml(elapsedShare(share.elapsed_seconds))}</small>${highest ? `<b>Highest recent</b>` : ""}</article>`;
+  }).join("") : `<div class="empty"><strong>No accepted submissions retained yet.</strong><span>PoCiSys Public Pool Port v0.1.5+ supplies exact accepted-share difficulty. Unsupported pool APIs remain explicitly N/A.</span></div>`;
 }
 
 function alertFeed(events) {
@@ -892,6 +943,7 @@ function renderAll() {
   renderOdds();
   renderDashboardPools();
   renderManagedPools();
+  renderAcceptedShares();
   renderAlerts();
   renderScreen();
   const detailMatch = location.pathname.match(/^\/miners\/([^/]+)$/);

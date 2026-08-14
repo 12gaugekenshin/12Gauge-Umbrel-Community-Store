@@ -10,6 +10,8 @@ verification path from candidate share through Bitcoin Core acceptance and
 - Install and fully synchronize **Bitcoin Node** on Umbrel.
 - Keep the stock Public Pool on port `3333` if you use it.
 - PoCiSys Public Pool Port uses the separate port `3334`.
+- Its read-only monitor API is available on LAN port `2020`, so PoCiSys Hash
+  Monitor can connect to `http://<umbrel-ip>:2020`.
 
 ## Install
 
@@ -26,6 +28,10 @@ verification path from candidate share through Bitcoin Core acceptance and
    ```
 
 5. Wait for the worker to appear on the dashboard.
+
+To add this pool to PoCiSys Hash Monitor, use the self-hosted pool API URL
+`http://<umbrel-ip>:2020`. Version 0.1.5 and newer exposes only the ten most
+recent verified accepted submissions; old shares are deleted automatically.
 
 Use your Umbrel's LAN IP instead of `umbrel.local` if your miner cannot resolve
 local hostnames.

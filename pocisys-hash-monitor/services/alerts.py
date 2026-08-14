@@ -135,6 +135,9 @@ class AlertEngine:
             recovery_managed
             and (luxos_control.get("recovery_pending") or luxos_control.get("recovery_observing"))
         )
+        health = status.get("health") or {}
+        health_reasons = health.get("reasons") if isinstance(health.get("reasons"), list) else []
+        health_codes = {str(item.get("code") or "") for item in health_reasons if isinstance(item, dict)}
         chip_state = None
         offline_grace = max(
             self.offline_grace,
@@ -186,8 +189,9 @@ class AlertEngine:
             if threshold is None and device_expected:
                 threshold = device_expected * 0.75
                 threshold_source = "75% of device-reported expected"
-            if hashrate is not None and threshold and hashrate < threshold:
-                status["warnings"].append("Hashrate below threshold")
+            if "hashrate_below_expected" in health_codes and hashrate is not None and threshold and hashrate < threshold:
+                if "Hashrate Below Expected" not in status["warnings"]:
+                    status["warnings"].append("Hashrate Below Expected")
                 if discord.get("send_hashrate_alerts", True) and not recovery_noise_suppressed:
                     await self.emit(
                         f"{miner_key}:hashrate",
@@ -203,15 +207,17 @@ class AlertEngine:
             highest = max(temps, default=None)
             critical = miner_config.get("temp_critical_c")
             warning = miner_config.get("temp_warning_c")
-            if highest is not None and critical and highest >= critical:
-                status["warnings"].append("Temperature critical")
+            if "asic_temperature_critical" in health_codes and highest is not None and critical and highest >= critical:
+                if "ASIC Temperature Above Critical Limit" not in status["warnings"]:
+                    status["warnings"].append("ASIC Temperature Above Critical Limit")
                 if discord.get("send_temperature_alerts", True):
                     await self.emit(
                         f"{miner_key}:temp-critical", "TEMP Temperature Critical",
                         f"{name}\nCurrent: {highest:g} C", "critical", name, url=miner_url,
                     )
-            elif highest is not None and warning and highest >= warning:
-                status["warnings"].append("Temperature warning")
+            elif "asic_temperature_warning" in health_codes and highest is not None and warning and highest >= warning:
+                if "ASIC Temperature Above Limit" not in status["warnings"]:
+                    status["warnings"].append("ASIC Temperature Above Limit")
                 if discord.get("send_temperature_alerts", True):
                     await self.emit(
                         f"{miner_key}:temp-warning", "TEMP Temperature Warning",
@@ -222,12 +228,14 @@ class AlertEngine:
             chip_items = chip_health.get("items") or []
             chip_health_reported = bool(chip_health.get("reported") and chip_items)
             item_states = {str(item.get("status") or "unknown").lower() for item in chip_items}
-            if chip_health_reported and "warning" in item_states:
+            chip_fault_confirmed = any(code.startswith(("chip_not_responding:", "chip_warning:")) for code in health_codes)
+            if chip_health_reported and chip_fault_confirmed:
                 chip_state = "degraded"
-            elif chip_health_reported and item_states and item_states == {"healthy"}:
+            elif chip_health_reported and "healthy" in item_states and not chip_fault_confirmed:
                 chip_state = "healthy"
             if chip_state == "degraded":
-                status["warnings"].append("LuxOS chip health degraded")
+                if "LuxOS chip health degraded" not in status["warnings"]:
+                    status["warnings"].append("LuxOS chip health degraded")
             previous_chip_degraded = prior.get("chip_health_degraded") if prior else False
             if (
                 miner_type == "luxos"

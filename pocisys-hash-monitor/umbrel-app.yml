@@ -2,7 +2,7 @@ manifestVersion: 1
 id: pocisys-hash-monitor
 category: bitcoin
 name: PoCiSys Hash Monitor
-version: "1.7.1"
+version: "1.8.0"
 tagline: Live SHA-256 fleet monitoring with optional LuxOS control
 icon: https://raw.githubusercontent.com/12gaugekenshin/PoCi-Hash-Monitor/main/pocisys-hash-monitor/icon-v2.png
 description: >-
@@ -21,9 +21,9 @@ description: >-
 
   Optional LuxOS control uses only existing native profiles and individual
   hashboard restart/off commands. Other miner types remain read-only. PoCiSys
-  stores only its small config.json file and keeps current telemetry and the
-  latest 25 control actions in bounded memory, with no database or long-term
-  hashrate history. Authenticated Hermes MCP access exposes read-only telemetry.
+  stores only small configuration plus ten accepted-share records per configured
+  pool. Current telemetry and the latest 25 control actions remain bounded, with
+  no long-term hashrate history. Authenticated Hermes MCP access exposes read-only telemetry.
 developer: PoCiSys
 website: https://pocisys.io/
 submitter: 12gaugekenshin
@@ -35,9 +35,12 @@ gallery:
   - https://raw.githubusercontent.com/12gaugekenshin/PoCi-Hash-Monitor/HEAD/pocisys-hash-monitor/1.png
   - https://raw.githubusercontent.com/12gaugekenshin/PoCi-Hash-Monitor/HEAD/pocisys-hash-monitor/2.png
 releaseNotes: >-
-  Separates per-miner manual control, scheduled curtailment, and automatic
-  hashboard-recovery arms. Unknown chips are ignored, and every real profile
-  transition starts a fresh ten-minute recovery observation window.
+  Adds a combined, color-coded feed containing the ten latest exact accepted
+  shares per configured pool, including elapsed time and BTC difficulty percentage.
+  Health reporting now distinguishes Healthy, Warning, Unhealthy, Offline, and
+  Unknown; requires consecutive faults and recovery hysteresis; and exposes the
+  exact telemetry rule behind each determination. PoCiSys Public Pool Port is
+  supported through its read-only port 2020 API.
 dependencies: []
 path: ""
 defaultUsername: ""
