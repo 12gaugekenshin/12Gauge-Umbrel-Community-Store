@@ -39,15 +39,12 @@ no growing long-term hashrate database. Miner controls, wallet data, and shell
 access are not exposed through MCP. Recent LuxOS control activity and health
 transitions are held in fixed-size in-memory queues.
 
-## Latest release — v1.8.2
+## Latest release — v1.8.3
 
-This stability and clarity release separates LuxOS native chip health from the
-optional score warning, so a low score no longer looks like a missing or
-non-responsive ASIC. Runtime alert state is hard-capped and pruned, removed
-miners leave no stale health state behind, request failures are more useful, and
-sanitized AxeOS, NerdQaxe, and LuxOS fixtures expand regression coverage. Shared
-validation and display helpers are now isolated from the main server and
-dashboard files without changing the app's familiar layout.
+Adds a configurable pool-disconnect grace period, defaulting to 60 seconds.
+Brief LuxOS Stratum inactivity drops that reconnect on their own remain visible
+on the miner but no longer create Discord alerts. Sustained disconnects send one
+alert after the grace period and one recovery message when the pool reconnects.
 
 Source and support: [PoCiSys Hash Monitor on GitHub](https://github.com/12gaugekenshin/PoCi-Hash-Monitor)
 

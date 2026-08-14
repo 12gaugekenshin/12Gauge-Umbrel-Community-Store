@@ -34,7 +34,7 @@ from services.luxos_control import LuxOSControlError, LuxOSControlService
 from services.validation import ApiError, as_float, as_int, clean_host, clean_miner, clean_pool
 
 
-APP_VERSION = "1.8.2"
+APP_VERSION = "1.8.3"
 ROOT = Path(__file__).resolve().parent
 WEB_ROOT = ROOT / "web"
 CONFIG_PATH = Path(os.environ.get("POCISYS_CONFIG_PATH", ROOT / "config.json")).resolve()
@@ -119,6 +119,7 @@ def current_settings():
         "dashboard_port": app_config.get("dashboard_port", 8765),
         "alert_cooldown_seconds": app_config.get("alert_cooldown_seconds", 600),
         "offline_alert_grace_seconds": app_config.get("offline_alert_grace_seconds", 60),
+        "pool_disconnect_grace_seconds": app_config.get("pool_disconnect_grace_seconds", 60),
         "request_timeout_seconds": app_config.get("request_timeout_seconds", 4),
         "dashboard_density": app_config.get("dashboard_density", "comfortable"),
         "difficulty_rain_enabled": app_config.get("difficulty_rain_enabled", True),
@@ -516,6 +517,7 @@ async def api_dispatch(method, path, data):
                 dashboard_port=max(1024, min(65535, as_int(data.get("dashboard_port"), 8765))),
                 alert_cooldown_seconds=max(0, min(86400, as_int(data.get("alert_cooldown_seconds"), 600))),
                 offline_alert_grace_seconds=max(0, min(3600, as_int(data.get("offline_alert_grace_seconds"), 60))),
+                pool_disconnect_grace_seconds=max(0, min(3600, as_int(data.get("pool_disconnect_grace_seconds"), 60))),
                 request_timeout_seconds=max(0.5, min(30, as_float(data.get("request_timeout_seconds"), 4))),
                 dashboard_density=density,
                 difficulty_rain_enabled=bool(data.get("difficulty_rain_enabled", True)),

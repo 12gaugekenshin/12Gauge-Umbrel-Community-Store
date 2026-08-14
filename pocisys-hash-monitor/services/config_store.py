@@ -24,6 +24,7 @@ def normalize_config(value: dict):
     config["app"].setdefault("dashboard_base_url", "")
     config["app"].setdefault("lan_access_enabled", False)
     config["app"].setdefault("offline_alert_grace_seconds", 60)
+    config["app"].setdefault("pool_disconnect_grace_seconds", 60)
     config["hermes"].setdefault("enabled", False)
     config["hermes"].setdefault("token_hash", "")
     config["hermes"].setdefault("token_hint", "")

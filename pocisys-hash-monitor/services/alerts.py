@@ -41,6 +41,7 @@ class AlertEngine:
         self.discord = DiscordWebhook(config.get("discord", {}))
         self.cooldown = config.get("app", {}).get("alert_cooldown_seconds", 600)
         self.offline_grace = config.get("app", {}).get("offline_alert_grace_seconds", 60)
+        self.pool_disconnect_grace = config.get("app", {}).get("pool_disconnect_grace_seconds", 60)
         self.last_sent = {}
         self.previous = {}
         self.best_diff = {}
@@ -51,6 +52,7 @@ class AlertEngine:
     def reconfigure(self):
         self.cooldown = self.config.get("app", {}).get("alert_cooldown_seconds", 600)
         self.offline_grace = self.config.get("app", {}).get("offline_alert_grace_seconds", 60)
+        self.pool_disconnect_grace = self.config.get("app", {}).get("pool_disconnect_grace_seconds", 60)
         self.discord.config = self.config.get("discord", {})
         valid = {
             str(item.get("id") or f"{item.get('type', 'miner')}:{item.get('ip')}")
@@ -143,6 +145,9 @@ class AlertEngine:
         now = time.monotonic()
         offline_since = None
         offline_alerted = False
+        pool_disconnected_since = prior.get("pool_disconnected_since") if prior else None
+        pool_disconnect_alerted = bool(prior.get("pool_disconnect_alerted")) if prior else False
+        pool_connected = None
         miner_type = str(status.get("type") or miner_config.get("type") or "").strip().lower()
         luxos_control = status.get("luxos_control") or {}
         recovery_managed = bool(miner_type == "luxos" and luxos_control.get("recovery_armed"))
@@ -311,14 +316,48 @@ class AlertEngine:
 
             pool = status.get("pool", {})
             pool_identity = (pool.get("url"), pool.get("source"))
-            if pool.get("connected") is False:
-                status["warnings"].append("Pool disconnected")
-                if discord.get("send_pool_alerts", True) and not recovery_noise_suppressed:
+            pool_connected = pool.get("connected")
+            if pool_connected is False:
+                if prior and pool_identity != prior.get("pool_identity"):
+                    pool_disconnected_since = None
+                    pool_disconnect_alerted = False
+                if pool_disconnected_since is None:
+                    pool_disconnected_since = now
+                disconnected_for = max(0, now - pool_disconnected_since)
+                status["pool_disconnected_for_seconds"] = round(disconnected_for, 1)
+                if disconnected_for < self.pool_disconnect_grace:
+                    remaining = max(0, int(self.pool_disconnect_grace - disconnected_for))
+                    status["warnings"].append(f"Pool reconnect grace ({remaining}s remaining)")
+                else:
+                    status["warnings"].append("Pool disconnected")
+                    if (
+                        discord.get("send_pool_alerts", True)
+                        and not recovery_noise_suppressed
+                        and not pool_disconnect_alerted
+                    ):
+                        sent = await self.emit(
+                            f"{miner_key}:pool", "ALERT Pool Disconnected",
+                            (
+                                f"{name}\nPool: {pool.get('url') or 'unknown'}\n"
+                                f"Disconnected for: {int(disconnected_for)} seconds"
+                            ),
+                            "critical", name, url=miner_url,
+                        )
+                        pool_disconnect_alerted = pool_disconnect_alerted or sent
+            elif pool_connected is True:
+                if (
+                    prior
+                    and prior.get("pool_disconnect_alerted")
+                    and discord.get("send_recovery_alerts", True)
+                    and not recovery_noise_suppressed
+                ):
                     await self.emit(
-                        f"{miner_key}:pool", "ALERT Pool Disconnected",
+                        f"{miner_key}:pool-reconnected", "Pool Reconnected",
                         f"{name}\nPool: {pool.get('url') or 'unknown'}",
-                        "critical", name, url=miner_url,
+                        "success", name, True, miner_url,
                     )
+                pool_disconnected_since = None
+                pool_disconnect_alerted = False
             if (
                 prior
                 and prior.get("pool_identity", (None, None))[0]
@@ -381,6 +420,9 @@ class AlertEngine:
             "blocks_found": int(status.get("blocks_found") or 0),
             "offline_since": offline_since,
             "offline_alerted": offline_alerted,
+            "pool_connected": pool_connected,
+            "pool_disconnected_since": pool_disconnected_since if online else None,
+            "pool_disconnect_alerted": pool_disconnect_alerted if online else False,
             # Unknown LuxOS chip states are transitional, not a recovery. Keep
             # the last known state until LuxOS reports a known result.
             "chip_health_degraded": (

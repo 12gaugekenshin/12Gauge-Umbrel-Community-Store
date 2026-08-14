@@ -4,6 +4,7 @@
     "dashboard_port": 8765,
     "alert_cooldown_seconds": 600,
     "offline_alert_grace_seconds": 60,
+    "pool_disconnect_grace_seconds": 60,
     "request_timeout_seconds": 4,
     "dashboard_density": "comfortable",
     "difficulty_rain_enabled": true,

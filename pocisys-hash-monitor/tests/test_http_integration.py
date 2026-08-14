@@ -64,7 +64,7 @@ class HttpIntegrationTests(unittest.TestCase):
     def test_token_auth_and_mcp_tools_over_http(self):
         status, health = self.request("/health")
         self.assertEqual(status, 200)
-        self.assertEqual(health["version"], "1.8.2")
+        self.assertEqual(health["version"], "1.8.3")
 
         _, generated = self.request("/api/hermes/token", method="POST", body={})
         token = generated["token"]
@@ -72,8 +72,12 @@ class HttpIntegrationTests(unittest.TestCase):
         self.assertNotIn(token, stored)
 
         _, settings = self.request("/api/settings")
+        self.assertEqual(settings["pool_disconnect_grace_seconds"], 60)
+        settings["pool_disconnect_grace_seconds"] = 75
         settings["hermes_enabled"] = True
         self.request("/api/settings", method="PUT", body=settings)
+        _, saved_settings = self.request("/api/settings")
+        self.assertEqual(saved_settings["pool_disconnect_grace_seconds"], 75)
 
         tools_list = {"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}}
         with self.assertRaises(urllib.error.HTTPError) as denied:

@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 from services.alerts import AlertEngine
 
@@ -48,7 +49,11 @@ def luxos_status(*, chip_status="warning", recovery_armed=True, pending=True, ob
 class AlertRecoveryNoiseTests(unittest.IsolatedAsyncioTestCase):
     def engine(self):
         return AlertEngine({
-            "app": {"alert_cooldown_seconds": 1, "offline_alert_grace_seconds": 60},
+            "app": {
+                "alert_cooldown_seconds": 1,
+                "offline_alert_grace_seconds": 60,
+                "pool_disconnect_grace_seconds": 60,
+            },
             "discord": {
                 "send_hashrate_alerts": True,
                 "send_chip_health_alerts": True,
@@ -66,7 +71,7 @@ class AlertRecoveryNoiseTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(list(engine.alert_feed), [])
         self.assertIn("Hashrate Below Expected", status["warnings"])
         self.assertIn("LuxOS chip health degraded", status["warnings"])
-        self.assertIn("Pool disconnected", status["warnings"])
+        self.assertTrue(any(item.startswith("Pool reconnect grace") for item in status["warnings"]))
 
     async def test_unknown_does_not_create_a_false_recovery_alert(self):
         engine = self.engine()
@@ -84,6 +89,42 @@ class AlertRecoveryNoiseTests(unittest.IsolatedAsyncioTestCase):
         await engine.evaluate_miner(status, {"id": "miner_1", "type": "luxos"})
         self.assertEqual(list(engine.alert_feed), [])
         self.assertTrue(engine.previous["miner_1"]["chip_health_degraded"])
+
+    async def test_brief_pool_disconnect_self_heals_without_alerts(self):
+        engine = self.engine()
+        disconnected = luxos_status(chip_status="healthy", recovery_armed=False, pending=False)
+        disconnected["hashrate_ths"] = disconnected["expected_hashrate_ths"]
+        with patch("services.alerts.time.monotonic", return_value=100):
+            await engine.evaluate_miner(disconnected, {"id": "miner_1", "type": "luxos"})
+        reconnected = luxos_status(chip_status="healthy", recovery_armed=False, pending=False)
+        reconnected["hashrate_ths"] = reconnected["expected_hashrate_ths"]
+        reconnected["pool"]["connected"] = True
+        with patch("services.alerts.time.monotonic", return_value=102):
+            await engine.evaluate_miner(reconnected, {"id": "miner_1", "type": "luxos"})
+        self.assertEqual(list(engine.alert_feed), [])
+        self.assertIsNone(engine.previous["miner_1"]["pool_disconnected_since"])
+
+    async def test_sustained_pool_disconnect_alerts_then_reports_recovery(self):
+        engine = self.engine()
+        disconnected = luxos_status(chip_status="healthy", recovery_armed=False, pending=False)
+        disconnected["hashrate_ths"] = disconnected["expected_hashrate_ths"]
+        with patch("services.alerts.time.monotonic", return_value=100):
+            await engine.evaluate_miner(disconnected, {"id": "miner_1", "type": "luxos"})
+        disconnected_again = luxos_status(chip_status="healthy", recovery_armed=False, pending=False)
+        disconnected_again["hashrate_ths"] = disconnected_again["expected_hashrate_ths"]
+        with patch("services.alerts.time.monotonic", return_value=161):
+            await engine.evaluate_miner(disconnected_again, {"id": "miner_1", "type": "luxos"})
+        still_disconnected = luxos_status(chip_status="healthy", recovery_armed=False, pending=False)
+        still_disconnected["hashrate_ths"] = still_disconnected["expected_hashrate_ths"]
+        with patch("services.alerts.time.monotonic", return_value=900):
+            await engine.evaluate_miner(still_disconnected, {"id": "miner_1", "type": "luxos"})
+        reconnected = luxos_status(chip_status="healthy", recovery_armed=False, pending=False)
+        reconnected["hashrate_ths"] = reconnected["expected_hashrate_ths"]
+        reconnected["pool"]["connected"] = True
+        with patch("services.alerts.time.monotonic", return_value=170):
+            await engine.evaluate_miner(reconnected, {"id": "miner_1", "type": "luxos"})
+        titles = [item["title"] for item in engine.alert_feed]
+        self.assertEqual(titles, ["Pool Reconnected", "ALERT Pool Disconnected"])
 
 
 if __name__ == "__main__":
