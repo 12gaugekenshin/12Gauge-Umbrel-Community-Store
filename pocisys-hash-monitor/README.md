@@ -27,6 +27,11 @@ Non-LuxOS miners always remain read-only.
   native profiles, scheduled curtailment, individual hashboard Sleep/wake, or
   guarded hashboard recovery. It never creates profiles or directly sets
   frequency and voltage values.
+- Download a safe configuration backup or sanitized bounded diagnostic report
+  from Settings. Backup restore validates every miner and pool before saving.
+- Add PoCiSys to a phone or desktop home screen. Full PWA installation and its
+  fixed-size offline shell require HTTPS, such as an HTTPS Tailscale address;
+  the normal dashboard remains available over local HTTP.
 
 MCP tokens are shown once. Store one somewhere safe before closing the setup
 screen.
@@ -50,11 +55,13 @@ for hardware damage, overheating, downtime, lost mining revenue, increased power
 costs, data loss, or other direct or indirect damages. Users are responsible for
 verifying power, cooling, firmware, and manufacturer limits.
 
-## Latest release — v1.8.4
+## Latest release — v1.9.0
 
-Adds a visible safety and liability notice to the README, About section, and
-LuxOS Control Mode. It clarifies that telemetry is not a hardware safety system
-and optional miner controls are used at the user's risk.
+Adds safe configuration backup and validated restore, bounded sanitized
+diagnostics downloads, a one-time LuxOS control safety acknowledgement, and an
+installable mobile web-app experience with improved phone layouts. Credentials
+are excluded from backups, diagnostics are generated only on demand, and the
+PWA cache contains only a fixed five-file application shell—never telemetry.
 
 Source and support: [PoCiSys Hash Monitor on GitHub](https://github.com/12gaugekenshin/PoCi-Hash-Monitor)
 

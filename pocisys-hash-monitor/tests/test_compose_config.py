@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import unittest
+import json
+import struct
 from pathlib import Path
 
 
@@ -61,6 +63,22 @@ class UmbrelComposeTests(unittest.TestCase):
         self.assertGreaterEqual(html.count("not a hardware safety system"), 2)
         self.assertIn("## Safety and liability", readme)
         self.assertIn("provided “as is” without warranty", readme)
+
+    def test_pwa_manifest_icons_and_cache_are_bounded(self):
+        web_root = Path(__file__).resolve().parents[1] / "web"
+        manifest = json.loads((web_root / "manifest.webmanifest").read_text(encoding="utf-8"))
+        self.assertEqual(manifest["display"], "standalone")
+        self.assertEqual(manifest["start_url"], "/")
+        sizes = {item["sizes"] for item in manifest["icons"]}
+        self.assertEqual(sizes, {"192x192", "512x512"})
+        for expected, filename in ((192, "pwa-icon-192.png"), (512, "pwa-icon-512.png")):
+            payload = (web_root / filename).read_bytes()
+            width, height = struct.unpack(">II", payload[16:24])
+            self.assertEqual((width, height), (expected, expected))
+        worker = (web_root / "service-worker.js").read_text(encoding="utf-8")
+        self.assertIn('url.pathname.startsWith("/api/")', worker)
+        self.assertIn('cache.put("/", copy)', worker)
+        self.assertNotIn("indexedDB", worker)
 
 
 if __name__ == "__main__":

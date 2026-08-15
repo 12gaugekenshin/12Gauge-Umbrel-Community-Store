@@ -64,7 +64,7 @@ class HttpIntegrationTests(unittest.TestCase):
     def test_token_auth_and_mcp_tools_over_http(self):
         status, health = self.request("/health")
         self.assertEqual(status, 200)
-        self.assertEqual(health["version"], "1.8.4")
+        self.assertEqual(health["version"], "1.9.0")
 
         _, generated = self.request("/api/hermes/token", method="POST", body={})
         token = generated["token"]
@@ -167,6 +167,33 @@ class HttpIntegrationTests(unittest.TestCase):
         self.assertFalse(miner["control_enabled"])
         self.assertFalse(miner["control_schedule_enabled"])
         self.assertTrue(miner["auto_recover_hashboards"])
+
+    def test_config_backup_and_restore_over_http(self):
+        status, manifest = self.request("/manifest.webmanifest")
+        self.assertEqual(status, 200)
+        self.assertEqual(manifest["name"], "PoCiSys Hash Monitor")
+        status, backup = self.request("/api/config-backup")
+        self.assertEqual(status, 200)
+        self.assertTrue(backup["sanitized"])
+        self.assertNotIn("webhook_url", backup["config"]["discord"])
+        status, result = self.request("/api/config-restore", method="POST", body=backup)
+        self.assertEqual(status, 200)
+        self.assertTrue(result["ok"])
+        status, diagnostics = self.request("/api/diagnostics")
+        self.assertEqual(status, 200)
+        self.assertEqual(diagnostics["report"]["app"], "PoCiSys Hash Monitor")
+        self.assertIn("limits", diagnostics["report"])
+
+        _, settings = self.request("/api/settings")
+        settings["luxos_control_enabled"] = True
+        settings["luxos_control_acknowledged"] = False
+        with self.assertRaises(urllib.error.HTTPError) as denied:
+            self.request("/api/settings", method="PUT", body=settings)
+        self.assertEqual(denied.exception.code, 400)
+        settings["luxos_control_acknowledged"] = True
+        _, saved = self.request("/api/settings", method="PUT", body=settings)
+        self.assertTrue(saved["settings"]["luxos_control_enabled"])
+        self.assertTrue(saved["settings"]["luxos_control_acknowledged"])
 
 
 if __name__ == "__main__":

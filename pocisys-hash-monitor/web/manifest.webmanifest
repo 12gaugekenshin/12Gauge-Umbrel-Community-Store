@@ -1,0 +1,27 @@
+{
+  "id": "/",
+  "name": "PoCiSys Hash Monitor",
+  "short_name": "PoCiSys",
+  "description": "Live SHA-256 miner fleet monitoring with optional guarded LuxOS control.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#080c12",
+  "theme_color": "#080c12",
+  "categories": ["utilities", "productivity"],
+  "icons": [
+    {
+      "src": "/static/pwa-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/pwa-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

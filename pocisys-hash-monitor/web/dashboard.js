@@ -15,6 +15,7 @@ let alertSnoozeUntil = 0;
 let pointerStart = null;
 let suppressNextClick = false;
 let hideIps = localStorage.getItem("pocisys-hide-ips") === "true";
+let deferredInstallPrompt = null;
 const difficultyRain = {
   canvas: null,
   ctx: null,
@@ -43,6 +44,7 @@ const DEFAULT_SETTINGS = {
   dashboard_base_url: "",
   lan_access_enabled: false,
   luxos_control_enabled: false,
+  luxos_control_acknowledged: false,
   control_timezone: "auto",
   control_utc_offset_minutes: 0,
   discord_enabled: false,
@@ -93,6 +95,42 @@ function oddsHashrate(item) {
   const [value, unit] = compactHashrate(item?.miner_hashrate_ths ?? 0);
   const allocated = ["BTC", "BCH"].includes(String(item?.symbol || "").toUpperCase());
   return `${value} ${unit} ${allocated ? "assigned" : "fleet"}`;
+}
+
+function updatePwaInstallUi() {
+  const help = $("#pwa-install-help");
+  const button = $("#pwa-install-button");
+  if (!help || !button) return;
+  const standalone = window.matchMedia?.("(display-mode: standalone)").matches || window.navigator.standalone === true;
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  if (standalone) {
+    help.textContent = "PoCiSys is already running as an installed app.";
+    button.hidden = true;
+  } else if (deferredInstallPrompt) {
+    help.textContent = "Install the dashboard for a focused home-screen or desktop experience.";
+    button.hidden = false;
+  } else if (ios) {
+    help.textContent = "On iPhone or iPad, use Share → Add to Home Screen. HTTPS through Tailscale enables the complete PWA experience.";
+    button.hidden = true;
+  } else if (!window.isSecureContext) {
+    help.textContent = "Your browser can save a shortcut, but full PWA installation requires HTTPS (for example, an HTTPS Tailscale address).";
+    button.hidden = true;
+  } else {
+    help.textContent = "Use your browser's Install or Add to Home Screen menu if the install button is not shown.";
+    button.hidden = true;
+  }
+}
+
+async function installPwa() {
+  if (!deferredInstallPrompt) {
+    updatePwaInstallUi();
+    toast("Use your browser menu to add PoCiSys to your device.", "warning");
+    return;
+  }
+  await deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  updatePwaInstallUi();
 }
 
 function collectDifficultyRainValues() {
@@ -930,6 +968,23 @@ function setFormValue(form, name, value) {
   }
 }
 
+function cancelControlSafety() {
+  $("#control-safety-check").checked = false;
+  $("#settings-form").elements.luxos_control_enabled.checked = false;
+  $("#control-safety-dialog").close();
+}
+
+function acceptControlSafety() {
+  if (!$("#control-safety-check").checked) {
+    toast("Check the acknowledgement box before enabling controls.", "warning");
+    return;
+  }
+  settings = {...settings, luxos_control_acknowledged: true};
+  $("#settings-form").elements.luxos_control_enabled.checked = true;
+  $("#control-safety-dialog").close();
+  toast("Safety notice acknowledged. Save settings to enable LuxOS controls.", "success");
+}
+
 function populateLuxosProfileSelect(select, profiles, selectedValue, placeholder) {
   const selected = String(selectedValue || "");
   const rows = [`<option value="">${escapeHtml(placeholder)}</option>`];
@@ -1124,6 +1179,65 @@ async function resumeAlerts() {
   toast("Routine Discord alerts resumed.", "success");
 }
 
+function downloadJson(filename, payload) {
+  const blob = new Blob([`${JSON.stringify(payload, null, 2)}\n`], {type: "application/json"});
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function downloadConfigBackup(button) {
+  button.disabled = true;
+  try {
+    const backup = await request("/api/config-backup");
+    const date = new Date().toISOString().slice(0, 10);
+    downloadJson(`pocisys-config-backup-${date}.json`, backup);
+    $("#config-transfer-result").innerHTML = `<strong class="good">Safe backup downloaded</strong><span>Discord and Hermes credentials were excluded.</span>`;
+    toast("Safe configuration backup downloaded.", "success");
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function downloadDiagnostics(button) {
+  button.disabled = true;
+  try {
+    const report = await request("/api/diagnostics");
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    downloadJson(`pocisys-diagnostics-${timestamp}.json`, report);
+    $("#config-transfer-result").innerHTML = `<strong class="good">Sanitized diagnostics downloaded</strong><span>Generated from bounded current data; nothing was retained by PoCiSys.</span>`;
+    toast("Sanitized diagnostics downloaded.", "success");
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function restoreConfigFile(file) {
+  if (!file) return;
+  if (file.size > 1024 * 1024) throw new Error("Backup file must be 1 MB or smaller.");
+  let backup;
+  try {
+    backup = JSON.parse(await file.text());
+  } catch (_error) {
+    throw new Error("Choose a valid PoCiSys JSON backup.");
+  }
+  const imported = backup?.config || backup;
+  const miners = Array.isArray(imported?.miners) ? imported.miners.length : 0;
+  const pools = Array.isArray(imported?.pools) ? imported.pools.length : 0;
+  if (!confirm(`Restore ${miners} miner${miners === 1 ? "" : "s"} and ${pools} pool monitor${pools === 1 ? "" : "s"}? This replaces the current miner and pool lists. Saved Discord and Hermes credentials remain untouched.`)) return;
+  const result = await request("/api/config-restore", {method: "POST", body: backup, retries: 0});
+  settings = result.settings || await request("/api/settings");
+  fillSettings();
+  await Promise.all([loadManagement(), refresh()]);
+  $("#config-transfer-result").innerHTML = `<strong class="good">Backup restored</strong><span>${number(result.miners, 0)} miners · ${number(result.pools, 0)} pool monitors</span>`;
+  toast("Configuration restored and monitoring refreshed.", "success");
+}
+
 async function generateHermesToken(button) {
   const replacing = Boolean(settings?.hermes_token_configured);
   if (replacing && !confirm("Rotate the Hermes connection token? The existing Hermes connection will stop working until its saved token is updated.")) return;
@@ -1235,6 +1349,12 @@ document.addEventListener("click", async event => {
     if (action === "clear-alerts") await clearRecentAlerts(target);
     if (action === "snooze-alerts") await setAlertSnooze(Number(target.dataset.seconds));
     if (action === "resume-alerts") await resumeAlerts();
+    if (action === "download-config-backup") await downloadConfigBackup(target);
+    if (action === "download-diagnostics") await downloadDiagnostics(target);
+    if (action === "choose-config-restore") $("#config-restore-file").click();
+    if (action === "cancel-control-safety") cancelControlSafety();
+    if (action === "accept-control-safety") acceptControlSafety();
+    if (action === "install-pwa") await installPwa();
     if (action === "generate-hermes-token") await generateHermesToken(target);
     if (action === "copy-hermes-token") await copyHermesToken(target);
     if (action === "revoke-hermes-token") await revokeHermesToken(target);
@@ -1273,6 +1393,24 @@ document.addEventListener("click", async event => {
     target.disabled = false;
     toast(error.message, "error");
   }
+});
+
+$("#config-restore-file").addEventListener("change", async event => {
+  const input = event.currentTarget;
+  try {
+    await restoreConfigFile(input.files?.[0]);
+  } catch (error) {
+    toast(error.message, "error");
+  } finally {
+    input.value = "";
+  }
+});
+
+$("#settings-form").elements.luxos_control_enabled.addEventListener("change", event => {
+  if (!event.currentTarget.checked || settings?.luxos_control_acknowledged) return;
+  event.currentTarget.checked = false;
+  $("#control-safety-check").checked = false;
+  $("#control-safety-dialog").showModal();
 });
 
 document.addEventListener("keydown", event => {
@@ -1371,6 +1509,7 @@ $("#settings-form").addEventListener("submit", async event => {
     dashboard_base_url: form.elements.dashboard_base_url.value || null,
     lan_access_enabled: form.elements.lan_access_enabled.checked,
     luxos_control_enabled: form.elements.luxos_control_enabled.checked,
+    luxos_control_acknowledged: Boolean(settings?.luxos_control_acknowledged),
     control_timezone: form.elements.control_timezone.value || "auto",
     control_utc_offset_minutes: Number(form.elements.control_utc_offset_minutes.value || 0),
     discord_enabled: form.elements.discord_enabled.checked,
@@ -1454,6 +1593,20 @@ window.addEventListener("resize", () => {
 });
 document.addEventListener("visibilitychange", updateDifficultyRain);
 setIpPrivacy(hideIps);
+window.addEventListener("beforeinstallprompt", event => {
+  event.preventDefault();
+  deferredInstallPrompt = event;
+  updatePwaInstallUi();
+});
+window.addEventListener("appinstalled", () => {
+  deferredInstallPrompt = null;
+  updatePwaInstallUi();
+  toast("PoCiSys installed on this device.", "success");
+});
+if ("serviceWorker" in navigator && window.isSecureContext) {
+  navigator.serviceWorker.register("/service-worker.js").catch(() => {});
+}
+updatePwaInstallUi();
 route();
 Promise.all([refresh(), loadManagement(), loadSettings()]).catch(error => toast(error.message, "error"));
 setInterval(refresh, 5000);

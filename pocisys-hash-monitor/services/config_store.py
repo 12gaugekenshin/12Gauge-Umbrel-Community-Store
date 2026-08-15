@@ -29,6 +29,10 @@ def normalize_config(value: dict):
     config["hermes"].setdefault("token_hash", "")
     config["hermes"].setdefault("token_hint", "")
     config["app"].setdefault("luxos_control_enabled", False)
+    if "luxos_control_acknowledged" not in config["app"]:
+        # Existing users who had already armed control before this safety step
+        # are treated as acknowledged; fresh installs remain unacknowledged.
+        config["app"]["luxos_control_acknowledged"] = bool(config["app"]["luxos_control_enabled"])
     config["app"].setdefault("control_timezone", "auto")
     config["app"].setdefault("control_utc_offset_minutes", 0)
     config["odds"].setdefault("auto_network_data", True)

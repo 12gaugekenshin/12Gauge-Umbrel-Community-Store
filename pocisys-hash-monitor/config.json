@@ -11,6 +11,7 @@
     "dashboard_base_url": "",
     "lan_access_enabled": false,
     "luxos_control_enabled": false,
+    "luxos_control_acknowledged": false,
     "control_timezone": "auto",
     "control_utc_offset_minutes": 0
   },

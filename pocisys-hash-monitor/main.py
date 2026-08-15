@@ -15,6 +15,8 @@ from pathlib import Path
 from miners import get_driver
 from services.alerts import AlertEngine
 from services.config_store import apply_in_place, load_config, make_id, public_config, save_config
+from services.config_transfer import make_safe_backup, restore_safe_backup
+from services.diagnostics import build_diagnostics
 from services.hermes_mcp import (
     HermesMcpService,
     create_connection_token,
@@ -34,7 +36,7 @@ from services.luxos_control import LuxOSControlError, LuxOSControlService
 from services.validation import ApiError, as_float, as_int, clean_host, clean_miner, clean_pool
 
 
-APP_VERSION = "1.8.4"
+APP_VERSION = "1.9.0"
 ROOT = Path(__file__).resolve().parent
 WEB_ROOT = ROOT / "web"
 CONFIG_PATH = Path(os.environ.get("POCISYS_CONFIG_PATH", ROOT / "config.json")).resolve()
@@ -126,6 +128,7 @@ def current_settings():
         "dashboard_base_url": app_config.get("dashboard_base_url", ""),
         "lan_access_enabled": app_config.get("lan_access_enabled", False),
         "luxos_control_enabled": app_config.get("luxos_control_enabled", False),
+        "luxos_control_acknowledged": app_config.get("luxos_control_acknowledged", False),
         "control_timezone": app_config.get("control_timezone", "auto"),
         "control_utc_offset_minutes": app_config.get("control_utc_offset_minutes", 0),
         "discord_enabled": discord.get("enabled", False),
@@ -474,6 +477,35 @@ async def api_dispatch(method, path, data):
         return public_config(config)
     if method == "GET" and path == "/api/settings":
         return current_settings()
+    if method == "GET" and path == "/api/config-backup":
+        return make_safe_backup(config, APP_VERSION)
+    if method == "POST" and path == "/api/config-restore":
+        async with config_lock:
+            updated = restore_safe_backup(data, config)
+            commit_config(updated)
+        return {
+            "ok": True,
+            "miners": len(updated.get("miners", [])),
+            "pools": len(updated.get("pools", [])),
+            "settings": current_settings(),
+        }
+    if method == "GET" and path == "/api/diagnostics":
+        try:
+            live_pools = pool_logs.status()
+        except Exception as exc:
+            live_pools = [{"available": False, "message": f"Pool status unavailable: {exc}"}]
+        return build_diagnostics(
+            app_version=APP_VERSION,
+            config=config,
+            system=system_stats.snapshot(),
+            summary=summary(),
+            miner_statuses=statuses,
+            pool_statuses=live_pools,
+            alert_status=alerts.status(),
+            pool_events=list(pool_logs.events),
+            health_status=health_engine.status(),
+            control_status=luxos_control.status(),
+        )
     if method == "POST" and path == "/api/hermes/token":
         async with config_lock:
             token = create_connection_token()
@@ -512,6 +544,13 @@ async def api_dispatch(method, path, data):
             control_timezone = str(data.get("control_timezone") or "auto").strip()[:80]
             if not re.fullmatch(r"[A-Za-z0-9_+./-]+", control_timezone):
                 raise ApiError(400, "Invalid control schedule timezone")
+            control_requested = bool(data.get("luxos_control_enabled", False))
+            control_acknowledged = bool(
+                app_config.get("luxos_control_acknowledged", False)
+                or data.get("luxos_control_acknowledged", False)
+            )
+            if control_requested and not control_acknowledged:
+                raise ApiError(400, "Acknowledge the LuxOS Control Mode safety notice before enabling controls")
             app_config.update(
                 poll_interval_seconds=max(2, min(3600, as_int(data.get("poll_interval_seconds"), 10))),
                 dashboard_port=max(1024, min(65535, as_int(data.get("dashboard_port"), 8765))),
@@ -523,7 +562,8 @@ async def api_dispatch(method, path, data):
                 difficulty_rain_enabled=bool(data.get("difficulty_rain_enabled", True)),
                 dashboard_base_url=dashboard_url,
                 lan_access_enabled=bool(data.get("lan_access_enabled", False)),
-                luxos_control_enabled=bool(data.get("luxos_control_enabled", False)),
+                luxos_control_enabled=control_requested,
+                luxos_control_acknowledged=control_acknowledged,
                 control_timezone=control_timezone,
                 control_utc_offset_minutes=max(-840, min(840, as_int(data.get("control_utc_offset_minutes"), 0))),
             )
@@ -669,7 +709,12 @@ class PoCiSysHandler(BaseHTTPRequestHandler):
         return value
 
     def serve_frontend(self, path):
-        if path.startswith("/static/"):
+        if path in {"/manifest.webmanifest", "/service-worker.js"}:
+            candidate = (WEB_ROOT / path.lstrip("/")).resolve()
+            if not candidate.is_file():
+                self.send_error(404)
+                return
+        elif path.startswith("/static/"):
             relative = path[len("/static/"):]
             candidate = (WEB_ROOT / relative).resolve()
             if not str(candidate).startswith(str(WEB_ROOT.resolve())) or not candidate.is_file():
@@ -678,6 +723,8 @@ class PoCiSysHandler(BaseHTTPRequestHandler):
         else:
             candidate = WEB_ROOT / "index.html"
         content_type = mimetypes.guess_type(candidate.name)[0] or "application/octet-stream"
+        if candidate.suffix == ".webmanifest":
+            content_type = "application/manifest+json"
         if candidate.name == "index.html":
             html = candidate.read_text(encoding="utf-8")
             try:

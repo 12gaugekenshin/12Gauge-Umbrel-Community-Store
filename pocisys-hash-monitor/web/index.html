@@ -4,7 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#080c12">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="PoCiSys">
   <title>PoCiSys Hash Monitor</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" sizes="192x192" href="/static/pwa-icon-192.png">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -226,6 +231,19 @@
           </div>
         </section>
 
+        <section class="settings-card data-tools-card">
+          <div class="settings-card-head"><span class="settings-icon">⇄</span><div><h2>Backup &amp; recovery</h2><p>Move this small configuration between PoCiSys installations.</p></div></div>
+          <p class="settings-explainer">The safe backup includes miner addresses, names, groups, pool setup, thresholds, and app settings. Discord webhook and Hermes authentication values are deliberately excluded. Import replaces the configured miners and pools after validating every entry, while any credentials already saved on this installation remain untouched.</p>
+          <div class="data-tool-actions">
+            <button type="button" data-action="download-config-backup">Download safe backup</button>
+            <button type="button" data-action="choose-config-restore">Restore backup</button>
+            <button type="button" data-action="download-diagnostics">Download diagnostics</button>
+            <input id="config-restore-file" type="file" accept="application/json,.json" hidden>
+          </div>
+          <p class="settings-explainer">Diagnostics are generated only when requested and are never saved by PoCiSys. The report contains bounded current telemetry and recent events with addresses, URLs, wallet fields, tokens, webhooks, log paths, and raw API payloads removed.</p>
+          <div id="config-transfer-result" class="test-result"></div>
+        </section>
+
         <section class="settings-card about-card">
           <div class="settings-card-head"><span class="settings-icon">P</span><div><h2>About PoCiSys</h2><p>Built by 12GaugeKenshin for open, verifiable compute infrastructure.</p></div></div>
           <p class="settings-explainer about-copy"><strong>PoCiSys is building an open, verifiable infrastructure stack for AI auditing and cryptocurrency mining.</strong> Its AI auditing system monitors model and agent behavior through timing, performance, configuration, and operational signals, helping detect drift, tampering, unauthorized changes, and other anomalies without exposing private prompts, training data, or proprietary models.</p>
@@ -243,6 +261,10 @@
             <a href="https://github.com/12gaugekenshin" target="_blank" rel="noopener noreferrer">GitHub</a>
             <a href="https://pocisys.io/" target="_blank" rel="noopener noreferrer">PoCiSys.io</a>
             <a href="https://x.com/12gaugekenshin" target="_blank" rel="noopener noreferrer">X</a>
+          </div>
+          <div class="pwa-install-card">
+            <div><strong>Use PoCiSys like an app</strong><small id="pwa-install-help">Add this dashboard to your phone or desktop for a focused full-screen view.</small></div>
+            <button id="pwa-install-button" type="button" data-action="install-pwa" hidden>Install PoCiSys</button>
           </div>
         </section>
 
@@ -329,6 +351,22 @@
         <label class="switch-row enabled-row"><span><strong>Enable this monitor</strong></span><input name="enabled" type="checkbox" role="switch" checked></label>
       </div>
       <div class="dialog-actions"><span></span><span></span><button type="button" data-action="close-dialog">Cancel</button><button class="primary" type="submit">Save pool</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="control-safety-dialog" class="app-dialog safety-dialog">
+    <form method="dialog">
+      <div class="dialog-head"><div><p class="eyebrow">One-time acknowledgement</p><h2>Before enabling LuxOS controls</h2></div><button class="icon-button" type="button" data-action="cancel-control-safety" aria-label="Close">×</button></div>
+      <div class="dialog-body">
+        <div class="control-warning"><strong>PoCiSys is not a hardware safety system.</strong><span>Telemetry can be delayed, missing, or inaccurate. Automatic profile changes, curtailment, and hashboard recovery depend on network access and LuxOS behavior.</span></div>
+        <ul class="safety-list">
+          <li>I will verify power, cooling, firmware, profiles, and manufacturer limits.</li>
+          <li>I understand emergency restore is best effort and cannot run while the miner, Umbrel, or PoCiSys is unreachable.</li>
+          <li>I accept that optional miner controls are used at my own risk.</li>
+        </ul>
+        <label class="check-row acknowledgement-row"><input id="control-safety-check" type="checkbox"><span>I understand and want to enable LuxOS Control Mode.</span></label>
+      </div>
+      <div class="dialog-actions"><span></span><span></span><button type="button" data-action="cancel-control-safety">Cancel</button><button class="primary" type="button" data-action="accept-control-safety">Acknowledge &amp; enable</button></div>
     </form>
   </dialog>
 

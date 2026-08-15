@@ -20,6 +20,7 @@ body {
   position: relative;
   margin: 0;
   min-height: 100vh;
+  overflow-x: hidden;
   color: var(--text);
   background:
     radial-gradient(circle at 76% -20%, rgba(78, 215, 200, .12), transparent 35rem),
@@ -811,6 +812,14 @@ body.screen-active .cat-watermark img { opacity: .22; }
 .hermes-token-result label { min-width: 0; }
 .hermes-token-result input { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
 .hermes-actions { display: flex; flex-wrap: wrap; gap: 9px; padding-top: 13px; }
+.data-tools-card { border-color: rgba(92, 205, 194, .2); }
+.data-tool-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; }
+.pwa-install-card { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 16px; padding: 14px 15px; border: 1px solid rgba(78,215,200,.22); border-radius: 13px; background: rgba(78,215,200,.045); }
+.pwa-install-card strong, .pwa-install-card small { display: block; }
+.pwa-install-card small { margin-top: 3px; color: var(--muted); line-height: 1.45; }
+.safety-dialog { max-width: 680px; }
+.safety-list { display: grid; gap: 10px; margin: 4px 0 18px; padding-left: 22px; color: var(--muted); font-size: 13px; line-height: 1.55; }
+.acknowledgement-row { padding: 14px; border: 1px solid rgba(245,188,70,.34); border-radius: 12px; background: rgba(245,188,70,.05); }
 
 @keyframes screenBreathe {
   from { filter: brightness(.92) saturate(.88); }
@@ -845,6 +854,19 @@ body.screen-active .cat-watermark img { opacity: .22; }
   .miner-grid.compact { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 760px) {
+  .topbar { height: auto; min-height: 64px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; padding: 9px 12px 0; }
+  .brand { min-width: 0; }
+  .brand strong { font-size: 14px; }
+  .brand small { font-size: 9px; }
+  .top-actions { justify-content: flex-end; }
+  .privacy-button { min-height: 38px; }
+  nav { grid-column: 1 / -1; width: 100%; min-width: 0; height: 43px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+  nav::-webkit-scrollbar { display: none; }
+  nav a { min-width: max-content; padding: 0 12px; }
+  main { width: calc(100% - 24px); padding: 22px 0 92px; }
+  .page-heading { align-items: flex-start; flex-direction: column; margin-bottom: 20px; }
+  .heading-actions { width: 100%; justify-content: space-between; }
+  .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .top-actions { margin-left: 0; }
   .onboarding { grid-template-columns: 1fr; }
   .onboarding-visual { width: 230px; height: 230px; margin-top: 20px; transform: scale(.8); }
@@ -879,10 +901,24 @@ body.screen-active .cat-watermark img { opacity: .22; }
   .dialog-actions span { display: none; }
   .settings-save { position: static; align-items: stretch; flex-direction: column; }
   .builder-banner { width: calc(100% - 22px); gap: 9px; font-size: 12px; }
+  .app-dialog { width: calc(100% - 12px); max-height: calc(100dvh - 12px); border-radius: 15px; }
+  .dialog-head, .dialog-body, .dialog-actions { padding-left: 16px; padding-right: 16px; }
+  .data-tool-actions, .pwa-install-card { align-items: stretch; flex-direction: column; }
+  .data-tool-actions button, .pwa-install-card button { width: 100%; }
+  .cat-watermark img { right: -80px; bottom: -70px; width: 330px; opacity: .2; }
   .alert-toggle-grid { grid-template-columns: 1fr; }
   .alert-toggle-grid .switch-row:nth-child(2) { border-top: 1px solid var(--line); }
   .screen-status-grid, .screen-main-grid { grid-template-columns: 1fr; }
   .screen-head { align-items: flex-start; flex-direction: column; }
   .screen-clock { text-align: left; }
   .screen-miners { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 420px) {
+  .summary-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .summary-card { min-width: 0; padding: 13px 12px; }
+  .summary-card strong { font-size: 20px; }
+  .detail-stat-grid { grid-template-columns: 1fr; }
+  .dialog-actions { grid-template-columns: 1fr; }
+  .dialog-actions button { width: 100%; }
 }
