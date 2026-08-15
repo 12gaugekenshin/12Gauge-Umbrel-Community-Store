@@ -10,6 +10,7 @@ import unittest
 import urllib.error
 import urllib.request
 from pathlib import Path
+from unittest.mock import patch
 
 
 class HttpIntegrationTests(unittest.TestCase):
@@ -64,7 +65,7 @@ class HttpIntegrationTests(unittest.TestCase):
     def test_token_auth_and_mcp_tools_over_http(self):
         status, health = self.request("/health")
         self.assertEqual(status, 200)
-        self.assertEqual(health["version"], "1.9.0")
+        self.assertEqual(health["version"], "1.9.1")
 
         _, generated = self.request("/api/hermes/token", method="POST", body={})
         token = generated["token"]
@@ -122,6 +123,39 @@ class HttpIntegrationTests(unittest.TestCase):
             system_result["result"]["structuredContent"]["system"]["scope"],
             "container-visible host metrics",
         )
+
+    def test_fleet_summary_includes_total_shares_and_best_difficulties(self):
+        statuses = [
+            {
+                "online": True,
+                "api_ok": True,
+                "hashrate_ths": 1.0,
+                "ping_ms": 10,
+                "temps": {"asic": 50},
+                "shares": {"valid": 12, "invalid": 1, "stale": 0, "rejected": 0},
+                "difficulty": {"best_session": "2.5G", "best_all_time": "4T"},
+            },
+            {
+                "online": True,
+                "api_ok": True,
+                "hashrate_ths": 2.0,
+                "ping_ms": 20,
+                "temps": {"asic": 55},
+                "shares": {"valid": 30, "invalid": 0, "stale": 1, "rejected": 0},
+                "difficulty": {"best_session": "900M", "best_all_time": "3.5T"},
+            },
+        ]
+        with patch.object(self.app.poller, "statuses", return_value=statuses):
+            fleet = self.app.summary()
+        self.assertEqual(fleet["total_valid_shares"], 42)
+        self.assertEqual(fleet["best_session_difficulty"], 2.5e9)
+        self.assertEqual(fleet["best_recorded_difficulty"], 4e12)
+
+    def test_pool_share_history_can_be_cleared_over_http(self):
+        status, result = self.request("/api/pool-shares/clear", method="POST", body={})
+        self.assertEqual(status, 200)
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["cleared_pools"], 0)
 
     def test_used_hardware_can_save_a_low_chip_health_threshold(self):
         miner = self.app.clean_miner({

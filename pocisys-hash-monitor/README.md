@@ -55,13 +55,12 @@ for hardware damage, overheating, downtime, lost mining revenue, increased power
 costs, data loss, or other direct or indirect damages. Users are responsible for
 verifying power, cooling, firmware, and manufacturer limits.
 
-## Latest release — v1.9.0
+## Latest release — v1.9.1
 
-Adds safe configuration backup and validated restore, bounded sanitized
-diagnostics downloads, a one-time LuxOS control safety acknowledgement, and an
-installable mobile web-app experience with improved phone layouts. Credentials
-are excluded from backups, diagnostics are generated only on demand, and the
-PWA cache contains only a fixed five-file application shell—never telemetry.
+Adds fleet-wide total-share, session-best, and best-recorded difficulty metrics
+to the main dashboard and Screen page. Settings can now reset PoCiSys's bounded
+local pool share and difficulty records without changing miner or upstream pool
+counters.
 
 Source and support: [PoCiSys Hash Monitor on GitHub](https://github.com/12gaugekenshin/PoCi-Hash-Monitor)
 

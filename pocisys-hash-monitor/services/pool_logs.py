@@ -138,6 +138,7 @@ class PoolLogService:
         self.share_history = {}
         self.all_time_best = {}
         self.session_best = {}
+        self.reset_after = {}
         self.running = False
         self.task = None
         self._load_share_history()
@@ -166,6 +167,9 @@ class PoolLogService:
                 best = _difficulty(saved.get("all_time_best"))
                 if best is not None:
                     self.all_time_best[key] = best
+                reset_after = saved.get("reset_after_ms")
+                if isinstance(reset_after, (int, float)) and reset_after > 0:
+                    self.reset_after[key] = int(reset_after)
         except (OSError, ValueError, TypeError, json.JSONDecodeError):
             return
 
@@ -173,14 +177,16 @@ class PoolLogService:
         if not self.history_path:
             return
         self.history_path.parent.mkdir(parents=True, exist_ok=True)
+        keys = set(self.share_history) | set(self.all_time_best) | set(self.reset_after)
         payload = {
             "version": 1,
             "pools": {
                 key: {
-                    "shares": list(shares)[:MAX_ACCEPTED_SHARES_PER_POOL],
+                    "shares": list(self.share_history.get(key, ()))[:MAX_ACCEPTED_SHARES_PER_POOL],
                     "all_time_best": self.all_time_best.get(key),
+                    "reset_after_ms": self.reset_after.get(key),
                 }
-                for key, shares in self.share_history.items()
+                for key in keys
             },
         }
         temporary = self.history_path.with_suffix(self.history_path.suffix + ".tmp")
@@ -200,8 +206,24 @@ class PoolLogService:
         self.share_history = {key: value for key, value in self.share_history.items() if key in active_ids}
         self.all_time_best = {key: value for key, value in self.all_time_best.items() if key in active_ids}
         self.session_best = {key: value for key, value in self.session_best.items() if key in active_ids}
+        self.reset_after = {key: value for key, value in self.reset_after.items() if key in active_ids}
         self.pools = pools
         self._save_share_history()
+
+    def clear_share_history(self):
+        reset_at = datetime.now(timezone.utc)
+        reset_after_ms = int(reset_at.timestamp() * 1000)
+        active_ids = {self._key(pool) for pool in self.pools}
+        self.share_history.clear()
+        self.all_time_best.clear()
+        self.session_best.clear()
+        self.reset_after = {key: reset_after_ms for key in active_ids}
+        self._save_share_history()
+        return {
+            "ok": True,
+            "cleared_pools": len(active_ids),
+            "reset_at": reset_at.isoformat(timespec="seconds"),
+        }
 
     def _network_difficulty(self):
         try:
@@ -278,6 +300,8 @@ class PoolLogService:
         for raw in raw_shares[:100] if isinstance(raw_shares, list) else []:
             share = _normalize_share(raw, key)
             if not share:
+                continue
+            if share["timestamp_ms"] <= self.reset_after.get(key, 0):
                 continue
             if share["id"] not in by_id:
                 changed = True
@@ -382,7 +406,7 @@ class PoolLogService:
             worker_best = max((_difficulty(item.get("best_difficulty")) or 0 for item in normalized_workers), default=0)
             client_best = _difficulty(client.get("bestDifficulty")) if isinstance(client, dict) else None
             prior_all_time = self.all_time_best.get(key, 0)
-            if worker_best or client_best:
+            if (worker_best or client_best) and not self.reset_after.get(key):
                 self.session_best[key] = max(worker_best, client_best or 0, self.session_best.get(key, 0))
                 self.all_time_best[key] = max(self.session_best[key], self.all_time_best.get(key, 0))
                 if self.all_time_best[key] != prior_all_time:
@@ -398,7 +422,7 @@ class PoolLogService:
                 "block_height": pool_data.get("blockHeight"),
                 "total_miners": pool_data.get("totalMiners"),
                 "blocks_found": len(blocks),
-                "best_difficulty": client.get("bestDifficulty") if isinstance(client, dict) else worker_best or None,
+                "best_difficulty": self.session_best.get(key) if self.reset_after.get(key) else client.get("bestDifficulty") if isinstance(client, dict) else worker_best or None,
                 "workers_count": len(normalized_workers) if adapter == "pocisys_pool_port" else client.get("workersCount") if isinstance(client, dict) else None,
                 "workers": normalized_workers,
                 "address_detected": bool(address),

@@ -2,7 +2,7 @@ manifestVersion: 1
 id: pocisys-hash-monitor
 category: bitcoin
 name: PoCiSys Hash Monitor
-version: "1.9.0"
+version: "1.9.1"
 tagline: Live SHA-256 fleet monitoring with optional LuxOS control
 icon: https://raw.githubusercontent.com/12gaugekenshin/PoCi-Hash-Monitor/main/pocisys-hash-monitor/icon-v2.png
 description: >-
@@ -35,10 +35,10 @@ gallery:
   - https://raw.githubusercontent.com/12gaugekenshin/PoCi-Hash-Monitor/HEAD/pocisys-hash-monitor/1.png
   - https://raw.githubusercontent.com/12gaugekenshin/PoCi-Hash-Monitor/HEAD/pocisys-hash-monitor/2.png
 releaseNotes: >-
-  Adds safe configuration backup and validated restore, bounded sanitized
-  diagnostics downloads, one-time LuxOS control safety acknowledgement, and an
-  installable mobile web-app experience with improved phone layouts. Credentials
-  are excluded from backups and diagnostics are generated only on demand.
+  Adds fleet-wide total-share, session-best, and best-recorded difficulty metrics
+  to the main dashboard and Screen page. Settings can now reset PoCiSys's bounded
+  local pool share and difficulty records without changing miner or upstream pool
+  counters.
 dependencies: []
 path: ""
 defaultUsername: ""

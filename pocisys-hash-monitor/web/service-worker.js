@@ -1,4 +1,4 @@
-const CACHE_NAME = "pocisys-shell-v1";
+const CACHE_NAME = "pocisys-shell-v2";
 const SHELL_FILES = [
   "/",
   "/manifest.webmanifest",

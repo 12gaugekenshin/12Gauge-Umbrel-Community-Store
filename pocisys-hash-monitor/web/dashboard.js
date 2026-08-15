@@ -384,6 +384,8 @@ function renderSummary() {
     summaryMetric("Peak temperature", summary.highest_temperature_c === null ? "—" : `${number(summary.highest_temperature_c)} C`, "Across current sensors"),
     summaryMetric("Valid shares", number(summary.total_valid_shares, 0), "Current counters"),
     summaryMetric("Bad shares", number(summary.total_bad_shares, 0), "Invalid + stale + rejected", summary.total_bad_shares ? "warn" : ""),
+    summaryMetric("Session best", difficulty(summary.best_session_difficulty), "Best live miner session"),
+    summaryMetric("Best recorded", difficulty(summary.best_recorded_difficulty), "Best miner all-time counter"),
     summaryMetric("BTC daily odds", state.odds.btc.available ? percent(state.odds.btc.daily_chance) : "—", state.odds.btc.available ? oddsHashrate(state.odds.btc) : "Needs setup"),
     summaryMetric("BCH daily odds", state.odds.bch.available ? percent(state.odds.bch.daily_chance) : "—", state.odds.bch.available ? oddsHashrate(state.odds.bch) : "Needs setup"),
   ].join("");
@@ -795,7 +797,10 @@ function renderScreen() {
     screenStatusCard("Hashrate", `${number(summary.total_hashrate_ths || 0, 2)} TH/s`, "Fleet total", "good"),
     screenStatusCard("Online", `${summary.online_miners || 0} / ${summary.total_miners || 0}`, `${summary.configured_miners || 0} configured`, onlineClass),
     screenStatusCard("Peak temp", hottest, "Current sensors", summary.highest_temperature_c >= 70 ? "warn" : ""),
+    screenStatusCard("Total shares", number(summary.total_valid_shares || 0, 0), "Valid device counters"),
     screenStatusCard("Bad shares", number(summary.total_bad_shares || 0, 0), "Invalid + stale + rejected", summary.total_bad_shares ? "warn" : ""),
+    screenStatusCard("Session best", difficulty(summary.best_session_difficulty), "Best live miner session"),
+    screenStatusCard("Best recorded", difficulty(summary.best_recorded_difficulty), "Best miner all-time counter"),
     screenStatusCard("BTC odds", state.odds?.btc?.available ? `${percent(state.odds.btc.daily_chance)} / day` : "--", state.odds?.btc?.network_source || "Network data"),
     screenStatusCard("BCH odds", state.odds?.bch?.available ? `${percent(state.odds.bch.daily_chance)} / day` : "--", state.odds?.bch?.network_source || "Network data"),
   ].join("");
@@ -1179,6 +1184,18 @@ async function resumeAlerts() {
   toast("Routine Discord alerts resumed.", "success");
 }
 
+async function clearPoolShareHistory(button) {
+  if (!confirm("Clear PoCiSys's locally retained accepted shares and pool difficulty records? Miner and upstream pool counters are not changed.")) return;
+  button.disabled = true;
+  try {
+    const result = await request("/api/pool-shares/clear", {method: "POST"});
+    await refresh();
+    toast(`Cleared local share records for ${number(result.cleared_pools || 0, 0)} pool${result.cleared_pools === 1 ? "" : "s"}.`, "success");
+  } finally {
+    button.disabled = false;
+  }
+}
+
 function downloadJson(filename, payload) {
   const blob = new Blob([`${JSON.stringify(payload, null, 2)}\n`], {type: "application/json"});
   const url = URL.createObjectURL(blob);
@@ -1347,6 +1364,7 @@ document.addEventListener("click", async event => {
     if (action === "load-luxos-profiles") await loadLuxosProfiles(target);
     if (action === "luxos-control") await runLuxosControl(target);
     if (action === "clear-alerts") await clearRecentAlerts(target);
+    if (action === "clear-pool-shares") await clearPoolShareHistory(target);
     if (action === "snooze-alerts") await setAlertSnooze(Number(target.dataset.seconds));
     if (action === "resume-alerts") await resumeAlerts();
     if (action === "download-config-backup") await downloadConfigBackup(target);

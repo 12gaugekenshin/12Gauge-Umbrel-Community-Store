@@ -238,9 +238,11 @@
             <button type="button" data-action="download-config-backup">Download safe backup</button>
             <button type="button" data-action="choose-config-restore">Restore backup</button>
             <button type="button" data-action="download-diagnostics">Download diagnostics</button>
+            <button class="danger-text" type="button" data-action="clear-pool-shares">Reset local pool difficulties</button>
             <input id="config-restore-file" type="file" accept="application/json,.json" hidden>
           </div>
           <p class="settings-explainer">Diagnostics are generated only when requested and are never saved by PoCiSys. The report contains bounded current telemetry and recent events with addresses, URLs, wallet fields, tokens, webhooks, log paths, and raw API payloads removed.</p>
+          <p class="settings-explainer">Reset local pool difficulties clears PoCiSys's ten-share-per-pool history plus its local pool session/all-time records. It cannot erase best-difficulty counters stored by miner firmware or an upstream pool; those remain source-of-truth telemetry.</p>
           <div id="config-transfer-result" class="test-result"></div>
         </section>
 
@@ -253,6 +255,7 @@
             <p><strong>Bad shares</strong><span>Rejected + invalid + stale counters reported by the miners. These are current device counters, not stored history.</span></p>
             <p><strong>Session best</strong><span>Highest share difficulty reported since the miner or pool session began.</span></p>
             <p><strong>All-time best</strong><span>Highest difficulty the source says it has retained. Availability depends on firmware or the local pool API.</span></p>
+            <p><strong>Best recorded</strong><span>Highest all-time difficulty currently reported by any configured miner. Resetting local pool difficulties does not alter miner firmware counters.</span></p>
             <p><strong>Low Chip Score</strong><span>An optional LuxOS score warning. The chip remains responsive unless LuxOS separately marks it unhealthy.</span></p>
             <p><strong>Pool monitor</strong><span>Reads statistics or bounded events from a pool you host. The external connection test only checks TCP reachability.</span></p>
             <p><strong>Solo odds</strong><span>Uses only live hashrate assigned to that coin. Pool-mining devices are excluded from BTC/BCH solo odds.</span></p>

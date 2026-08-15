@@ -2,6 +2,7 @@ import asyncio
 import json
 import tempfile
 import threading
+import time
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -98,6 +99,32 @@ class PoolShareTests(unittest.TestCase):
         self.assertEqual(len(alpha["accepted_shares"]), 10)
         self.assertEqual(alpha["all_time_best_difficulty"], 12)
         self.assertIsNone(alpha["session_best_difficulty"])
+
+    def test_clear_history_ignores_pre_reset_shares_and_accepts_new_ones(self):
+        now = int(time.time())
+        old_share = {"id": "old", "received_at": now - 30, "worker": "one", "difficulty": 500}
+        self.service._merge_shares(self.pools[0], [old_share])
+
+        result = self.service.clear_share_history()
+        cleared = self.service.status()[0]
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["cleared_pools"], 2)
+        self.assertEqual(cleared["accepted_shares"], [])
+        self.assertIsNone(cleared["session_best_difficulty"])
+        self.assertIsNone(cleared["all_time_best_difficulty"])
+
+        self.service._merge_shares(self.pools[0], [old_share])
+        self.assertEqual(self.service.status()[0]["accepted_shares"], [])
+
+        new_share = {"id": "new", "received_at": now + 2, "worker": "two", "difficulty": 900}
+        self.service._merge_shares(self.pools[0], [new_share])
+        refreshed = self.service.status()[0]
+        self.assertEqual(len(refreshed["accepted_shares"]), 1)
+        self.assertEqual(refreshed["session_best_difficulty"], 900)
+        self.assertEqual(refreshed["all_time_best_difficulty"], 900)
+
+        saved = json.loads(self.path.read_text(encoding="utf-8"))
+        self.assertGreater(saved["pools"]["alpha"]["reset_after_ms"], 0)
 
     def test_pocisys_port_adapter_reads_actual_accepted_shares(self):
         server = ThreadingHTTPServer(("127.0.0.1", 0), PoCiSysPortApi)

@@ -36,7 +36,7 @@ from services.luxos_control import LuxOSControlError, LuxOSControlService
 from services.validation import ApiError, as_float, as_int, clean_host, clean_miner, clean_pool
 
 
-APP_VERSION = "1.9.0"
+APP_VERSION = "1.9.1"
 ROOT = Path(__file__).resolve().parent
 WEB_ROOT = ROOT / "web"
 CONFIG_PATH = Path(os.environ.get("POCISYS_CONFIG_PATH", ROOT / "config.json")).resolve()
@@ -83,6 +83,19 @@ def commit_config(updated):
     )
 
 
+def _difficulty_number(value):
+    if value is None:
+        return None
+    text = str(value).strip().upper().replace(",", "")
+    factors = {"K": 1e3, "M": 1e6, "G": 1e9, "T": 1e12, "P": 1e15}
+    try:
+        if text[-1:] in factors:
+            return float(text[:-1]) * factors[text[-1]]
+        return float(text)
+    except (ValueError, TypeError):
+        return None
+
+
 def summary():
     statuses = poller.statuses()
     online = [item for item in statuses if item.get("online") and item.get("api_ok")]
@@ -93,6 +106,16 @@ def summary():
         if temp is not None
     ]
     pings = [item["ping_ms"] for item in online if item.get("ping_ms") is not None]
+    session_difficulties = [
+        parsed
+        for item in statuses
+        if (parsed := _difficulty_number(item.get("difficulty", {}).get("best_session"))) is not None
+    ]
+    recorded_difficulties = [
+        parsed
+        for item in statuses
+        if (parsed := _difficulty_number(item.get("difficulty", {}).get("best_all_time"))) is not None
+    ]
     enabled_count = sum(1 for item in config.get("miners", []) if item.get("enabled", True))
     return {
         "total_hashrate_ths": sum(float(item.get("hashrate_ths") or 0) for item in online),
@@ -107,6 +130,8 @@ def summary():
             for item in statuses
             for key in ("invalid", "stale", "rejected")
         ),
+        "best_session_difficulty": max(session_difficulties, default=None),
+        "best_recorded_difficulty": max(recorded_difficulties, default=None),
         "last_poll": poller.last_poll,
     }
 
@@ -626,6 +651,8 @@ async def api_dispatch(method, path, data):
         return alerts.status()
     if method == "POST" and path == "/api/alerts/clear":
         return alerts.clear_recent()
+    if method == "POST" and path == "/api/pool-shares/clear":
+        return pool_logs.clear_share_history()
     if method == "POST" and path == "/api/alerts/snooze":
         try:
             return alerts.snooze(as_int(data.get("seconds"), 0))

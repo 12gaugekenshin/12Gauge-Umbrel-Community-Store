@@ -150,7 +150,7 @@ h2 { margin-bottom: 2px; font-size: 17px; letter-spacing: -.01em; }
 .heading-actions { display: flex; align-items: center; gap: 15px; color: var(--muted); font-size: 12px; }
 .section-heading { display: flex; align-items: center; justify-content: space-between; margin: 30px 0 14px; }
 
-.summary-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 10px; }
+.summary-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
 .summary-grid.compact { grid-template-columns: repeat(4, 1fr); margin-bottom: 18px; }
 .metric {
   min-height: 104px;
@@ -249,7 +249,7 @@ td small { display: block; color: var(--muted); }
 #toast.show { opacity: 1; transform: translateY(0); }
 
 @media (max-width: 1100px) {
-  .summary-grid { grid-template-columns: repeat(4, 1fr); }
+  .summary-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .miner-grid { grid-template-columns: repeat(2, 1fr); }
   nav a { padding: 0 8px; }
 }
@@ -728,7 +728,7 @@ body.screen-active .cat-watermark img { opacity: .22; }
 .screen-clock .screen-snooze-controls { margin-top: 10px; }
 .screen-clock .screen-snooze-controls span { display: inline-flex; margin-top: 0; }
 .screen-snooze-controls button { padding: 6px 8px; font-size: 10px; opacity: .8; }
-.screen-status-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 16px; }
+.screen-status-grid { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
 .screen-stat {
   min-height: 104px;
   padding: 17px;
@@ -838,6 +838,9 @@ body.screen-active .cat-watermark img { opacity: .22; }
   to { transform: translate3d(-26px, -18px, 0) rotate(1deg); }
 }
 
+@media (max-width: 1450px) {
+  .screen-status-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
 @media (max-width: 1260px) {
   .miner-grid.compact { grid-template-columns: repeat(3, 1fr); }
   .topbar { padding-inline: 18px; }
@@ -908,7 +911,8 @@ body.screen-active .cat-watermark img { opacity: .22; }
   .cat-watermark img { right: -80px; bottom: -70px; width: 330px; opacity: .2; }
   .alert-toggle-grid { grid-template-columns: 1fr; }
   .alert-toggle-grid .switch-row:nth-child(2) { border-top: 1px solid var(--line); }
-  .screen-status-grid, .screen-main-grid { grid-template-columns: 1fr; }
+  .screen-status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .screen-main-grid { grid-template-columns: 1fr; }
   .screen-head { align-items: flex-start; flex-direction: column; }
   .screen-clock { text-align: left; }
   .screen-miners { grid-template-columns: 1fr; }
