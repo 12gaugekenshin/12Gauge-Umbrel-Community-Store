@@ -2,7 +2,7 @@ manifestVersion: 1
 id: pocisys-public-pool-port
 category: bitcoin
 name: PoCiSys Public Pool Port
-version: "0.1.5"
+version: "0.1.6"
 tagline: Solo mine through your node with verified block states
 icon: https://raw.githubusercontent.com/12gaugekenshin/Pocisys-public-pool-port/main/pocisys-public-pool-port/icon-v2.png
 description: >-
@@ -25,10 +25,9 @@ path: ""
 defaultUsername: ""
 defaultPassword: ""
 releaseNotes: >-
-  Adds a protected local accepted-share callback, independently calculates exact
-  submitted difficulty from each accepted 80-byte header, and persists only the
-  ten newest shares. A read-only LAN API on port 2020 lets PoCiSys Hash Monitor
-  display workers and accepted shares while Stratum remains on port 3334.
+  Adds read-only Public Pool compatibility endpoints on LAN port 2020. The new
+  /api/pool and /api/info routes expose current hashrate, worker count, block
+  height, and PoCiSys user-agent totals without opening another port.
 widgets:
   - id: pool-stats
     type: four-stats

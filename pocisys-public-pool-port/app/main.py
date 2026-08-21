@@ -203,7 +203,7 @@ MONITOR = None
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "PoCiSysPoolPort/0.1.5"
+    server_version = "PoCiSysPoolPort/0.1.6"
 
     def log_message(self, fmt, *args):
         LOG.info("%s - %s", self.address_string(), fmt % args)
@@ -223,6 +223,22 @@ class Handler(BaseHTTPRequestHandler):
             return self.json_response({"ok": True})
         if parsed.path == "/api/status":
             return self.json_response(MONITOR.status())
+        if parsed.path == "/api/pool":
+            status = MONITOR.status()
+            return self.json_response({
+                "totalHashRate": status.get("totalHashRate", 0),
+                "totalMiners": status.get("totalMiners", 0),
+                "blockHeight": status.get("blockHeight"),
+            })
+        if parsed.path == "/api/info":
+            status = MONITOR.status()
+            return self.json_response({
+                "userAgents": [{
+                    "userAgent": "PoCiSys",
+                    "count": status.get("totalMiners", 0),
+                    "totalHashRate": status.get("totalHashRate", 0),
+                }]
+            })
         if parsed.path == "/api/blocks":
             return self.json_response(MONITOR.store.candidates())
         if parsed.path == "/api/events":

@@ -32,6 +32,8 @@ verification path from candidate share through Bitcoin Core acceptance and
 To add this pool to PoCiSys Hash Monitor, use the self-hosted pool API URL
 `http://<umbrel-ip>:2020`. Version 0.1.5 and newer exposes only the ten most
 recent verified accepted submissions; old shares are deleted automatically.
+Version 0.1.6 also provides Public Pool-compatible read-only `/api/pool` and
+`/api/info` routes on that same port.
 
 Use your Umbrel's LAN IP instead of `umbrel.local` if your miner cannot resolve
 local hostnames.
