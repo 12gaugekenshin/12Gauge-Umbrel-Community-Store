@@ -7,7 +7,7 @@ services:
       APP_PORT: 8080
 
   dashboard:
-    image: ghcr.io/12gaugekenshin/pocisys-bchn-sp-dashboard:0.1.0
+    image: ghcr.io/12gaugekenshin/pocisys-bchn-sp-dashboard:0.1.0@sha256:b7e8cf944236d38e9529be3a99d3781f9908dfa422b78b06688561c527d15811
     restart: on-failure
     mem_limit: 128m
     depends_on:
@@ -24,7 +24,7 @@ services:
       STRATUM_PORT: 3335
 
   engine:
-    image: ghcr.io/12gaugekenshin/pocisys-bchn-sp-engine:0.1.0
+    image: ghcr.io/12gaugekenshin/pocisys-bchn-sp-engine:0.1.0@sha256:1c6eef471f952975687cfae4addbfcf64bdf82857051cab897ee1ffbc2726804
     restart: on-failure
     stop_grace_period: 20s
     mem_limit: 256m
@@ -34,7 +34,7 @@ services:
       - "3335:3335/tcp"
 
   node:
-    image: zquestz/bitcoin-cash-node:29.1.0
+    image: zquestz/bitcoin-cash-node:29.1.0@sha256:2931c686822590033a65dc060ddc1fc05bdf2885ad5ed0c30001ce3a001ed0eb
     restart: on-failure
     stop_grace_period: 60s
     mem_limit: 1024m
