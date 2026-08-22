@@ -1,0 +1,64 @@
+version: "3.7"
+
+services:
+  app_proxy:
+    environment:
+      APP_HOST: pocisys-bchn-sp_dashboard_1
+      APP_PORT: 8080
+
+  dashboard:
+    image: ghcr.io/12gaugekenshin/pocisys-bchn-sp-dashboard:0.1.0
+    restart: on-failure
+    mem_limit: 128m
+    depends_on:
+      - node
+      - engine
+    ports:
+      - "2021:8080/tcp"
+    environment:
+      PORT: 8080
+      ENGINE_URL: http://engine:8081
+      BCH_RPC_URL: http://node:8332
+      BCH_RPC_USER: pocisys
+      BCH_RPC_PASSWORD: pocisys-bchn-internal-only
+      STRATUM_PORT: 3335
+
+  engine:
+    image: ghcr.io/12gaugekenshin/pocisys-bchn-sp-engine:0.1.0
+    restart: on-failure
+    stop_grace_period: 20s
+    mem_limit: 256m
+    depends_on:
+      - node
+    ports:
+      - "3335:3335/tcp"
+
+  node:
+    image: zquestz/bitcoin-cash-node:29.1.0
+    restart: on-failure
+    stop_grace_period: 60s
+    mem_limit: 1024m
+    volumes:
+      - ${APP_DATA_DIR}/data/bchn:/data
+    ports:
+      - "8336:8333/tcp"
+    command:
+      - bitcoind
+      - -datadir=/data
+      - -server=1
+      - -listen=1
+      - -port=8333
+      - -rpcbind=0.0.0.0
+      - -rpcallowip=0.0.0.0/0
+      - -rpcport=8332
+      - -rpcuser=pocisys
+      - -rpcpassword=pocisys-bchn-internal-only
+      - -disablewallet=1
+      - -txindex=0
+      - -prune=10240
+      - -dbcache=128
+      - -maxmempool=50
+      - -maxconnections=24
+      - -maxuploadtarget=1024
+      - -zmqpubhashblock=tcp://0.0.0.0:28332
+      - -printtoconsole=1

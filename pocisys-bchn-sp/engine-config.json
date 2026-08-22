@@ -1,0 +1,50 @@
+{
+  "pool_name": "PoCiSys BCHN&SP",
+  "log_level": "info",
+  "api_port": 8081,
+  "donation": { "enabled": false, "percent": 1.0 },
+  "coins": {
+    "BCH": {
+      "enabled": true,
+      "coin_type": "bitcoincash",
+      "node": {
+        "host": "node",
+        "port": 8332,
+        "username": "pocisys",
+        "password": "pocisys-bchn-internal-only",
+        "zmq_enabled": true,
+        "zmq_hashblock": "tcp://node:28332"
+      },
+      "stratum": {
+        "host": "0.0.0.0",
+        "port": 3335,
+        "difficulty": 1024,
+        "ping_enabled": true,
+        "ping_interval": 30,
+        "accept_suggest_diff": true,
+        "stale_share_grace": 5,
+        "low_diff_share_grace": 5
+      },
+      "mining": {
+        "mode": "solo",
+        "address": "",
+        "network": "mainnet",
+        "coinbase_text": "PoCiSys BCHN&SP",
+        "extranonce_size": 8
+      },
+      "vardiff": {
+        "enabled": true,
+        "min_diff": 1,
+        "max_diff": 1048576,
+        "target_time": 15,
+        "retarget_time": 90,
+        "variance_percent": 30,
+        "float_diff": false,
+        "float_diff_below_one": true,
+        "float_precision": 2,
+        "on_new_block": true
+      },
+      "template_refresh_interval": 5
+    }
+  }
+}

@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.idea/
+.vscode/
+data/
+tests/regtest-data/
+tests/*.exe
+*.exe

@@ -1,0 +1,45 @@
+manifestVersion: 1
+id: pocisys-bchn-sp
+category: bitcoin
+name: PoCiSys BCHN&SP
+version: "0.1.0"
+tagline: Pruned Bitcoin Cash node and LuxOS-ready solo pool
+icon: https://raw.githubusercontent.com/12gaugekenshin/PoCiSys-BCHN-SP/main/icon.png
+description: >-
+  A self-contained, pruned Bitcoin Cash Node and BCH-native solo Stratum pool.
+  Connect SHA-256 miners—including LuxOS devices—on port 3335 and mine directly
+  to the CashAddr supplied as each worker username. RPC remains private, no
+  wallet keys are stored, and all dashboard telemetry is live and bounded.
+developer: PoCiSys
+website: https://pocisys.io/
+repo: https://github.com/12gaugekenshin/PoCiSys-BCHN-SP
+support: https://github.com/12gaugekenshin/PoCiSys-BCHN-SP/issues
+submitter: 12gaugekenshin
+submission: https://github.com/12gaugekenshin/PoCiSys-BCHN-SP
+dependencies: []
+port: 8686
+gallery: []
+path: ""
+defaultUsername: ""
+defaultPassword: ""
+releaseNotes: >-
+  Initial preview: BCHN 29.1.0, 10 GiB automatic pruning, private RPC, BCH-native
+  solo Stratum on port 3335, LuxOS-compatible CashAddr worker authorization,
+  bounded live telemetry, and PoCiSys monitoring compatibility on LAN port 2021.
+widgets:
+  - id: bchn-status
+    type: four-stats
+    refresh: 15s
+    endpoint: dashboard:8080/api/widget
+    link: ""
+    example:
+      type: four-stats
+      items:
+        - title: Node
+          text: Online
+        - title: Height
+          text: "960000"
+        - title: Miners
+          text: "2"
+        - title: Shares
+          text: "42"

@@ -1,0 +1,17 @@
+{
+  "pool_name": "PoCiSys BCHN&SP Regtest",
+  "log_level": "debug",
+  "api_port": 18081,
+  "donation": { "enabled": false, "percent": 1.0 },
+  "coins": {
+    "BCH": {
+      "enabled": true,
+      "coin_type": "bitcoincash",
+      "node": { "host": "127.0.0.1", "port": 18443, "username": "test", "password": "test", "zmq_enabled": false, "zmq_hashblock": "" },
+      "stratum": { "host": "127.0.0.1", "port": 13335, "difficulty": 1, "ping_enabled": true, "ping_interval": 30, "accept_suggest_diff": true, "stale_share_grace": 5, "low_diff_share_grace": 5 },
+      "mining": { "mode": "solo", "address": "", "network": "testnet", "coinbase_text": "PoCiSys BCHN&SP Regtest", "extranonce_size": 8 },
+      "vardiff": { "enabled": true, "min_diff": 0.001, "max_diff": 1024, "target_time": 15, "retarget_time": 90, "variance_percent": 30, "float_diff": true, "float_diff_below_one": true, "float_precision": 3, "on_new_block": true },
+      "template_refresh_interval": 2
+    }
+  }
+}
