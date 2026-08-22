@@ -2,7 +2,7 @@ manifestVersion: 1
 id: pocisys-gpu-runtime
 category: ai
 name: PoCiSys GPU Runtime
-version: "0.1.7"
+version: "0.1.8"
 tagline: Run private local AI on your Tesla P100
 icon: https://raw.githubusercontent.com/12gaugekenshin/PoCiSys-GPU-Runtime/main/pocisys-gpu-runtime/icon-v2.png
 description: >-
@@ -10,7 +10,8 @@ description: >-
   the NVIDIA driver, validates the card, starts a private Ollama endpoint, and
   reports GPU health from one dashboard. Models and logs stay on the existing
   hermes-agent-ssd volume. Requires an x86-64 server, Tesla P100 PCIe 16 GB,
-  matching kernel headers, forced-air cooling, and Secure Boot disabled.
+  matching kernel headers, a USB-connected Corsair Commander DUO with the P100
+  fan on PWM Fan Port 1, and Secure Boot disabled.
 developer: PoCiSys
 website: https://pocisys.io/
 submitter: 12gaugekenshin
@@ -20,9 +21,10 @@ support: https://github.com/12gaugekenshin/PoCiSys-GPU-Runtime/issues
 port: 8780
 gallery: []
 releaseNotes: >-
-  Unloads the model after every response, limits requests to a 4K context, and
-  caps GPU Runtime at 2 GB of physical RAM with bounded swap fallback. The
-  dashboard can choose safe context and unload presets.
+  Adds fail-safe P100 cooling through a Corsair Commander DUO. The runtime
+  pins one GPU UUID, verifies Fan Port 1 and live RPM, provides an ordered
+  100/70/50/40 calibration, and gates automatic temperature control and model
+  tests behind successful cooling checks.
 dependencies: []
 path: ""
 defaultUsername: ""

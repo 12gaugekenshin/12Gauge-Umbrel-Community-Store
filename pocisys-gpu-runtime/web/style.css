@@ -105,7 +105,8 @@ header p:last-child {
 article,
 .endpoint,
 .runtime-settings,
-.safe-test {
+.safe-test,
+.fan-control {
   border: 1px solid rgba(154, 181, 214, 0.14);
   border-radius: 18px;
   background: rgba(14, 21, 33, 0.84);
@@ -209,6 +210,94 @@ dd {
   background: #090f17;
   color: #d8e5f5;
   white-space: pre-wrap;
+}
+
+.fan-control {
+  margin-top: 18px;
+  padding: 22px;
+}
+
+.section-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 22px;
+  align-items: flex-start;
+}
+
+.section-heading h2,
+.section-heading p,
+.calibration h3,
+.calibration p {
+  margin: 0;
+}
+
+.section-heading h2 {
+  margin-bottom: 8px;
+}
+
+.section-heading > div > p:last-child,
+.calibration p {
+  max-width: 720px;
+  color: #9eaec4;
+  line-height: 1.55;
+}
+
+.fan-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 28px;
+  margin-top: 18px;
+}
+
+.calibration {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(154, 181, 214, 0.14);
+}
+
+.calibration h3 {
+  margin-bottom: 7px;
+  font-size: 14px;
+}
+
+.calibration-buttons,
+.fan-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.calibration button,
+.fan-actions button {
+  padding: 11px 14px;
+  border: 1px solid #39d99d;
+  border-radius: 11px;
+  background: rgba(36, 157, 116, 0.2);
+  color: #78ffd0;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.calibration button.secondary {
+  border-color: #ffc36d;
+  background: rgba(188, 116, 25, 0.16);
+  color: #ffd18d;
+}
+
+.calibration button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.fan-result {
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(103, 255, 203, 0.22);
+  border-radius: 11px;
+  background: #090f17;
+  color: #d8e5f5;
 }
 
 .runtime-settings {
@@ -327,6 +416,15 @@ footer {
 
   .runtime-settings {
     grid-template-columns: 1fr;
+  }
+
+  .fan-grid {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .section-heading {
+    flex-direction: column;
   }
 
   footer {

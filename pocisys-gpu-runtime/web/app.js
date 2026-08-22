@@ -1,6 +1,7 @@
 const byId = (id) => document.getElementById(id);
 let settingsLoaded = false;
 let settingsDirty = false;
+let fanBusy = false;
 
 function formatBytes(value) {
   const number = Number(value);
@@ -19,6 +20,78 @@ function setText(id, value, fallback = "—") {
   byId(id).textContent = value || fallback;
 }
 
+function humanMode(value) {
+  return String(value || "unknown")
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function renderFan(fan) {
+  const state = byId("fan-state");
+  const healthy = fan?.healthy === true;
+  state.textContent = healthy ? "HEALTHY" : fan?.online ? "CHECK FAN" : "UNAVAILABLE";
+  state.className = `pill ${healthy ? "ready" : "error"}`;
+
+  const usb = fan?.usb || {};
+  setText(
+    "fan-usb",
+    usb.detected
+      ? `${usb.vendor_id}:${usb.product_id}${usb.expected_product_id ? "" : " · detected PID"}`
+      : "Not detected"
+  );
+  const hub = fan?.openlinkhub || {};
+  setText("fan-product", hub.product);
+  setText("fan-serial", hub.serial);
+  setText(
+    "fan-port",
+    hub.physical_port
+      ? `Physical port ${hub.physical_port} · channel ${hub.channel_id}`
+      : ""
+  );
+  const probes = hub.temperature_probes || [];
+  [0, 1].forEach((index) => {
+    const probe = probes[index];
+    setText(
+      `fan-probe-${index + 1}`,
+      probe
+        ? `${probe.temperature_c} °C · API channel ${probe.channel_id}`
+        : "Not reported"
+    );
+  });
+  setText("fan-rpm", fan?.reported_rpm ? `${fan.reported_rpm} RPM` : "No RPM");
+  setText("fan-target", fan?.target_percent ? `${fan.target_percent}%` : "100% fail-safe");
+  setText("fan-mode", humanMode(fan?.mode));
+  setText("fan-automatic", fan?.automatic_enabled ? "Enabled" : "Disabled");
+
+  const calibrated = fan?.calibrated_duties || {};
+  const manualRunning = Boolean(fan?.manual_test);
+  const order = [100, 70, 50, 40];
+  document.querySelectorAll("[data-fan-duty]").forEach((button) => {
+    const duty = Number(button.dataset.fanDuty);
+    const priorComplete = order
+      .slice(0, order.indexOf(duty))
+      .every((prior) => calibrated[String(prior)] === true);
+    button.disabled = fanBusy || manualRunning || !healthy || !priorComplete;
+    button.textContent = calibrated[String(duty)]
+      ? `✓ ${duty}% passed`
+      : `Test ${duty}%`;
+  });
+
+  const automatic = byId("toggle-automatic");
+  automatic.disabled = fanBusy || manualRunning || (!fan?.calibration_complete && !fan?.automatic_enabled);
+  automatic.textContent = fan?.automatic_enabled
+    ? "Disable Automatic Control"
+    : "Enable Automatic Control";
+  byId("force-fan").disabled = fanBusy;
+
+  if (manualRunning) {
+    const remaining = Number(fan.manual_remaining_seconds || 0);
+    const result = byId("fan-result");
+    result.hidden = false;
+    result.textContent = `${fan.manual_test.duty}% test running · returns to 100% in about ${remaining}s · ${fan.reported_rpm || 0} RPM`;
+  }
+}
+
 function render(data) {
   const state = data.state || "starting";
   const stateNode = byId("state");
@@ -32,6 +105,7 @@ function render(data) {
   setText("storage", data.data_root);
   setText("endpoint", data.ollama_endpoint);
   setText("ollama", data.ollama?.online ? "Online" : "Offline");
+  renderFan(data.fan || {});
 
   if (!settingsLoaded || !settingsDirty) {
     const settings = data.runtime_settings || {};
@@ -51,6 +125,8 @@ function render(data) {
   const gpu = data.gpu;
   if (gpu) {
     setText("gpu-name", gpu.name);
+    setText("gpu-uuid", gpu.uuid);
+    setText("gpu-pci", gpu.pci_bus_id);
     setText("gpu-temp", `${gpu.temperature_c} °C`);
     setText(
       "gpu-memory",
@@ -60,7 +136,7 @@ function render(data) {
     setText("gpu-power", `${gpu.power_w} / ${gpu.power_limit_w} W`);
     setText("gpu-driver", gpu.driver_version);
   } else {
-    ["gpu-name", "gpu-temp", "gpu-memory", "gpu-util", "gpu-power"].forEach(
+    ["gpu-name", "gpu-uuid", "gpu-pci", "gpu-temp", "gpu-memory", "gpu-util", "gpu-power"].forEach(
       (id) => setText(id, "")
     );
     setText("gpu-driver", data.driver_version);
@@ -150,4 +226,47 @@ byId("safe-test-button").addEventListener("click", async () => {
     button.textContent = "Run Safe Test";
     refresh();
   }
+});
+
+async function fanPost(path, payload = undefined) {
+  fanBusy = true;
+  const result = byId("fan-result");
+  result.hidden = false;
+  result.textContent = "Sending bounded fan command…";
+  try {
+    const options = { method: "POST", headers: {} };
+    if (payload !== undefined) {
+      options.headers["Content-Type"] = "application/json";
+      options.body = JSON.stringify(payload);
+    }
+    const response = await fetch(path, options);
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+    result.textContent = "Command accepted. Live telemetry will confirm the result.";
+  } catch (error) {
+    result.textContent = `Fan command refused: ${error.message}`;
+  } finally {
+    fanBusy = false;
+    await refresh();
+  }
+}
+
+document.querySelectorAll("[data-fan-duty]").forEach((button) => {
+  button.addEventListener("click", () =>
+    fanPost("/api/fan/manual", {
+      duty: Number(button.dataset.fanDuty),
+      duration_seconds: 25,
+    })
+  );
+});
+
+byId("force-fan").addEventListener("click", () =>
+  fanPost("/api/fan/force-100")
+);
+
+byId("toggle-automatic").addEventListener("click", async () => {
+  const status = await fetch("/api/status", { cache: "no-store" }).then((response) => response.json());
+  return fanPost("/api/fan/automatic", {
+    enabled: !Boolean(status.fan?.automatic_enabled),
+  });
 });

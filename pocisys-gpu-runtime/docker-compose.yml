@@ -15,7 +15,7 @@ services:
     mem_limit: 2g
     memswap_limit: 4g
     environment:
-      POCISYS_SOURCE_ZIP: https://codeload.github.com/12gaugekenshin/PoCiSys-GPU-Runtime/zip/refs/tags/v0.1.7
+      POCISYS_SOURCE_ZIP: https://codeload.github.com/12gaugekenshin/PoCiSys-GPU-Runtime/zip/refs/tags/v0.1.8
       POCISYS_EXPECTED_PCI_ID: "10de:15f8"
       POCISYS_NVIDIA_DRIVER_VERSION: "570.144"
       POCISYS_NVIDIA_DRIVER_SHA256: "f3532d135c934c1a25480275da3cf8edb32aa6c5fccef64f657463c26e26fb70"
@@ -23,6 +23,9 @@ services:
       POCISYS_OLLAMA_VERSION: "0.32.0"
       POCISYS_OLLAMA_SHA256: "56362d7609dfa9e35aaebb7c9cab25605d8f0528ec3d5d585dc83d6642002bab"
       POCISYS_OLLAMA_URL: https://github.com/ollama/ollama/releases/download/v0.32.0/ollama-linux-amd64.tar.zst
+      POCISYS_OPENLINKHUB_VERSION: "0.9.0"
+      POCISYS_OPENLINKHUB_SHA256: "dbb2252616d0fcea717cbbd99d9a74dae58298457ccda41afc53b89b1bb67251"
+      POCISYS_OPENLINKHUB_URL: https://github.com/jurkovic-nikola/OpenLinkHub/releases/download/0.9.0/OpenLinkHub_0.9.0_amd64.tar.gz
       POCISYS_STATUS_PORT: "8780"
       POCISYS_DATA_ROOT: /agent-storage/pocisys-gpu-runtime
       POCISYS_GPU_MAX_TEMP_C: "82"
@@ -46,18 +49,19 @@ services:
       - /usr/src:/host/usr/src:ro
       - /lib/modules:/host/lib/modules:ro
       - /sys:/sys:rw
+      - /dev/bus/usb:/dev/bus/usb
     command:
       - /bin/bash
       - -lc
       - |
         set -e
         export DEBIAN_FRONTEND=noninteractive
-        marker=/var/lib/pocisys-gpu-runtime-deps-v2
+        marker=/var/lib/pocisys-gpu-runtime-deps-v3
         if [ ! -f "$$marker" ]; then
           apt-get update
           apt-get install -y --no-install-recommends \
             binutils build-essential ca-certificates curl dwarves kmod libelf-dev \
-            pciutils pkg-config unzip xz-utils zstd
+            libudev1 pciutils pkg-config unzip usbutils xz-utils zstd
           rm -rf /var/lib/apt/lists/*
           touch "$$marker"
         fi

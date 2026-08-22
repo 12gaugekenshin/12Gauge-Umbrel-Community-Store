@@ -8,8 +8,10 @@ import mimetypes
 import os
 import subprocess
 import threading
+import time
 import urllib.error
 import urllib.request
+import uuid
 from urllib.parse import urlsplit
 from datetime import datetime, timezone
 from http import HTTPStatus
@@ -26,6 +28,19 @@ TEST_TIMEOUT_SECONDS = 45
 TEST_LOCK = threading.Lock()
 SETTINGS_LOCK = threading.Lock()
 SETTINGS_FILE = Path(os.environ.get("POCISYS_SETTINGS_FILE", "/data/runtime-settings.json"))
+FAN_STATUS_FILE = Path(
+    os.environ.get(
+        "POCISYS_FAN_STATUS_FILE", "/run/pocisys-gpu-runtime/fan-status.json"
+    )
+)
+FAN_COMMAND_FILE = Path(
+    os.environ.get(
+        "POCISYS_FAN_COMMAND_FILE", "/run/pocisys-gpu-runtime/fan-command.json"
+    )
+)
+FAN_SETTINGS_FILE = Path(
+    os.environ.get("POCISYS_FAN_SETTINGS_FILE", "/data/fan-controller.json")
+)
 ALLOWED_CONTEXT_LENGTHS = {1024, 2048, 4096}
 ALLOWED_KEEP_ALIVE = {"0", "30s", "2m"}
 
@@ -84,9 +99,72 @@ def read_field(name: str, default: str = "") -> str:
         return default
 
 
+def read_json_file(path: Path, maximum_bytes: int = 64 * 1024) -> dict[str, Any]:
+    try:
+        if path.stat().st_size > maximum_bytes:
+            return {}
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        return payload if isinstance(payload, dict) else {}
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def write_fan_command(action: str, **values: object) -> dict[str, Any]:
+    command = {
+        "id": str(uuid.uuid4()),
+        "action": action,
+        "requested_at": time.time(),
+        **values,
+    }
+    FAN_COMMAND_FILE.parent.mkdir(parents=True, exist_ok=True)
+    temporary = FAN_COMMAND_FILE.with_suffix(".tmp")
+    temporary.write_text(json.dumps(command) + "\n", encoding="utf-8")
+    os.replace(temporary, FAN_COMMAND_FILE)
+    return command
+
+
+def fan_status() -> dict[str, Any]:
+    status = read_json_file(FAN_STATUS_FILE)
+    updated_at = status.get("updated_at")
+    try:
+        stale = time.time() - float(updated_at) > 8
+    except (TypeError, ValueError):
+        stale = True
+    if stale:
+        status.update(
+            {
+                "online": False,
+                "healthy": False,
+                "mode": "stale_controller_status",
+                "target_percent": 100,
+            }
+        )
+    return status
+
+
+def wait_for_fan_100(timeout_seconds: float = 8.0) -> dict[str, Any]:
+    command = write_fan_command("force_100")
+    requested_at = float(command["requested_at"])
+    deadline = time.monotonic() + timeout_seconds
+    latest: dict[str, Any] = {}
+    while time.monotonic() < deadline:
+        latest = read_json_file(FAN_STATUS_FILE)
+        if (
+            latest.get("healthy") is True
+            and int(latest.get("target_percent") or 0) == 100
+            and int(latest.get("reported_rpm") or 0) > 0
+            and float(latest.get("updated_at") or 0) >= requested_at
+        ):
+            return latest
+        time.sleep(0.25)
+    raise RuntimeError(
+        "Fan controller did not confirm 100% with nonzero RPM; inference was not started."
+    )
+
+
 def gpu_status() -> dict[str, Any] | None:
     query = (
-        "name,uuid,driver_version,temperature.gpu,power.draw,power.limit,"
+        "name,uuid,pci.bus_id,driver_version,temperature.gpu,power.draw,power.limit,"
         "memory.used,memory.total,utilization.gpu"
     )
     try:
@@ -101,10 +179,15 @@ def gpu_status() -> dict[str, Any] | None:
             text=True,
             timeout=3,
         )
-        values = [item.strip() for item in result.stdout.splitlines()[0].split(",")]
+        rows = [
+            [item.strip() for item in line.split(",")]
+            for line in result.stdout.splitlines()
+            if line.strip()
+        ]
         keys = [
             "name",
             "uuid",
+            "pci_bus_id",
             "driver_version",
             "temperature_c",
             "power_w",
@@ -113,7 +196,18 @@ def gpu_status() -> dict[str, Any] | None:
             "memory_total_mib",
             "utilization_percent",
         ]
-        return dict(zip(keys, values, strict=False))
+        configured_uuid = str(read_json_file(FAN_SETTINGS_FILE).get("gpu_uuid") or "")
+        selected = next(
+            (
+                dict(zip(keys, values, strict=False))
+                for values in rows
+                if len(values) >= len(keys)
+                and (not configured_uuid or values[1] == configured_uuid)
+                and "P100" in values[0].upper()
+            ),
+            None,
+        )
+        return selected
     except (OSError, subprocess.SubprocessError, IndexError):
         return None
 
@@ -157,6 +251,7 @@ def snapshot() -> dict[str, Any]:
         "ollama_endpoint": read_field("ollama_endpoint"),
         "data_root": read_field("data_root"),
         "runtime_settings": read_runtime_settings(),
+        "fan": fan_status(),
         "gpu": gpu_status(),
         "ollama": ollama_status(),
         "server_time": datetime.now(timezone.utc).isoformat(),
@@ -164,6 +259,7 @@ def snapshot() -> dict[str, Any]:
 
 
 def run_safe_test() -> dict[str, Any]:
+    fan = wait_for_fan_100()
     payload = {
         "model": TEST_MODEL,
         "messages": [
@@ -214,6 +310,11 @@ def run_safe_test() -> dict[str, Any]:
         "tokens_per_second": tokens_per_second,
         "total_seconds": round(int(result.get("total_duration") or 0) / 1_000_000_000, 2),
         "done_reason": result.get("done_reason", ""),
+        "fan_preflight": {
+            "target_percent": fan.get("target_percent"),
+            "reported_rpm": fan.get("reported_rpm"),
+            "gpu_uuid": (fan.get("gpu") or {}).get("uuid"),
+        },
         "limits": {
             "thinking": False,
             "max_output_tokens": 64,
@@ -273,7 +374,13 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802
         path = self.path.split("?", 1)[0]
-        if path not in ("/api/safe-test", "/api/settings"):
+        if path not in (
+            "/api/safe-test",
+            "/api/settings",
+            "/api/fan/manual",
+            "/api/fan/automatic",
+            "/api/fan/force-100",
+        ):
             self.send_error(HTTPStatus.NOT_FOUND)
             return
 
@@ -287,26 +394,83 @@ class Handler(BaseHTTPRequestHandler):
             )
             return
 
-        if path == "/api/settings":
+        if path in (
+            "/api/settings",
+            "/api/fan/manual",
+            "/api/fan/automatic",
+            "/api/fan/force-100",
+        ):
             try:
                 content_length = int(self.headers.get("Content-Length", "0"))
             except ValueError:
                 content_length = 0
-            if content_length <= 0 or content_length > 4096:
+            if path == "/api/fan/force-100" and content_length == 0:
+                payload: object = {}
+            elif content_length <= 0 or content_length > 4096:
                 self.send_bytes(
                     b'{"error":"Settings request must be between 1 and 4096 bytes."}\n',
                     "application/json",
                     HTTPStatus.BAD_REQUEST,
                 )
                 return
+            else:
+                try:
+                    payload = json.loads(self.rfile.read(content_length))
+                except json.JSONDecodeError as error:
+                    body = json.dumps({"error": str(error)}).encode("utf-8")
+                    self.send_bytes(body, "application/json", HTTPStatus.BAD_REQUEST)
+                    return
             try:
-                settings = validate_runtime_settings(
-                    json.loads(self.rfile.read(content_length))
-                )
-                with SETTINGS_LOCK:
-                    write_runtime_settings(settings)
+                if path == "/api/settings":
+                    settings = validate_runtime_settings(payload)
+                    with SETTINGS_LOCK:
+                        write_runtime_settings(settings)
+                    result: dict[str, Any] = {
+                        "settings": settings,
+                        "restart_required": True,
+                    }
+                elif path == "/api/fan/manual":
+                    if not isinstance(payload, dict):
+                        raise ValueError("Fan test must be a JSON object.")
+                    duty = int(payload.get("duty"))
+                    duration = int(payload.get("duration_seconds", 25))
+                    if duty not in {100, 70, 50, 40}:
+                        raise ValueError("Fan test must be 100%, 70%, 50%, or 40%.")
+                    if not 20 <= duration <= 30:
+                        raise ValueError("Fan test duration must be 20–30 seconds.")
+                    fan = fan_status()
+                    if not fan.get("healthy"):
+                        raise ValueError("Fan and GPU telemetry must be healthy before calibration.")
+                    if duty < 100 and not fan.get("gpu_stable"):
+                        raise ValueError(
+                            "Wait for a stable P100 temperature before reducing fan speed."
+                        )
+                    calibration = fan.get("calibrated_duties") or {}
+                    order = [100, 70, 50, 40]
+                    for prior in order[: order.index(duty)]:
+                        if not calibration.get(str(prior)):
+                            raise ValueError(f"Complete the {prior}% test first.")
+                    result = {
+                        "command": write_fan_command(
+                            "manual", duty=duty, duration_seconds=duration
+                        )
+                    }
+                elif path == "/api/fan/automatic":
+                    if not isinstance(payload, dict):
+                        raise ValueError("Automatic control request must be a JSON object.")
+                    enabled = payload.get("enabled") is True
+                    fan = fan_status()
+                    if enabled and not fan.get("calibration_complete"):
+                        raise ValueError(
+                            "Complete the 100%, 70%, 50%, and 40% tests first."
+                        )
+                    result = {
+                        "command": write_fan_command("automatic", enabled=enabled)
+                    }
+                else:
+                    result = {"command": write_fan_command("force_100")}
                 body = json.dumps(
-                    {"settings": settings, "restart_required": True},
+                    result,
                     separators=(",", ":"),
                 ).encode("utf-8")
                 self.send_bytes(body, "application/json")
@@ -332,7 +496,7 @@ class Handler(BaseHTTPRequestHandler):
                 {"error": f"Ollama returned HTTP {error.code}."}
             ).encode("utf-8")
             self.send_bytes(body, "application/json", HTTPStatus.BAD_GATEWAY)
-        except (OSError, urllib.error.URLError, json.JSONDecodeError) as error:
+        except (OSError, RuntimeError, urllib.error.URLError, json.JSONDecodeError) as error:
             body = json.dumps(
                 {"error": f"Safe test failed: {error}"}
             ).encode("utf-8")

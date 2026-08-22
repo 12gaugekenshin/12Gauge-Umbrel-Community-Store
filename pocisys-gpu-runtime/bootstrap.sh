@@ -19,8 +19,16 @@ OLLAMA_SHA256="${POCISYS_OLLAMA_SHA256:?POCISYS_OLLAMA_SHA256 is required}"
 OLLAMA_ARCHIVE="${CACHE_DIR}/ollama-linux-amd64-${OLLAMA_VERSION}.tar.zst"
 OLLAMA_ROOT="${DATA_ROOT}/ollama/${OLLAMA_VERSION}"
 OLLAMA_BIN="${OLLAMA_ROOT}/bin/ollama"
+OPENLINKHUB_VERSION="${POCISYS_OPENLINKHUB_VERSION:-0.9.0}"
+OPENLINKHUB_URL="${POCISYS_OPENLINKHUB_URL:?POCISYS_OPENLINKHUB_URL is required}"
+OPENLINKHUB_SHA256="${POCISYS_OPENLINKHUB_SHA256:?POCISYS_OPENLINKHUB_SHA256 is required}"
+OPENLINKHUB_ARCHIVE="${CACHE_DIR}/OpenLinkHub_${OPENLINKHUB_VERSION}_amd64.tar.gz"
+OPENLINKHUB_ROOT="${DATA_ROOT}/openlinkhub/${OPENLINKHUB_VERSION}"
+OPENLINKHUB_BIN="${OPENLINKHUB_ROOT}/OpenLinkHub"
 OLLAMA_PID=""
 STATUS_PID=""
+OPENLINKHUB_PID=""
+FAN_PID=""
 GPU_BDF=""
 NOUVEAU_WAS_BOUND="false"
 
@@ -108,8 +116,20 @@ rebind_nouveau() {
   fi
 }
 
+force_fan_100() {
+  python3 "${APP_DIR}/fan_controller.py" --force-100 \
+    >> "${LOG_DIR}/fan-controller.log" 2>&1 || true
+}
+
 cleanup() {
   set +e
+  if [ -n "$FAN_PID" ]; then
+    kill "$FAN_PID" 2>/dev/null
+    wait "$FAN_PID" 2>/dev/null
+  fi
+  if [ -n "$OPENLINKHUB_PID" ] && kill -0 "$OPENLINKHUB_PID" 2>/dev/null; then
+    force_fan_100
+  fi
   if [ -n "$OLLAMA_PID" ]; then
     kill "$OLLAMA_PID" 2>/dev/null
     wait "$OLLAMA_PID" 2>/dev/null
@@ -120,6 +140,10 @@ cleanup() {
   if [ -n "$STATUS_PID" ]; then
     kill "$STATUS_PID" 2>/dev/null
     wait "$STATUS_PID" 2>/dev/null
+  fi
+  if [ -n "$OPENLINKHUB_PID" ]; then
+    kill "$OPENLINKHUB_PID" 2>/dev/null
+    wait "$OPENLINKHUB_PID" 2>/dev/null
   fi
 }
 trap cleanup EXIT INT TERM
@@ -154,7 +178,7 @@ PY
 export OLLAMA_CONTEXT_LENGTH="${RUNTIME_SETTINGS[0]:-4096}"
 export OLLAMA_KEEP_ALIVE="${RUNTIME_SETTINGS[1]:-0}"
 
-write_field app_version "0.1.7"
+write_field app_version "0.1.8"
 write_field ollama_context_length "$OLLAMA_CONTEXT_LENGTH"
 write_field ollama_keep_alive "$OLLAMA_KEEP_ALIVE"
 write_field driver_version "$DRIVER_VERSION"
@@ -168,6 +192,97 @@ POCISYS_WEB_DIR="${APP_DIR}/web" \
 POCISYS_STATUS_PORT="${POCISYS_STATUS_PORT:-8780}" \
 python3 -u "${APP_DIR}/status_server.py" &
 STATUS_PID="$!"
+
+set_status preparing "Preparing the checksum-pinned OpenLinkHub ${OPENLINKHUB_VERSION} controller runtime."
+if [ ! -x "$OPENLINKHUB_BIN" ]; then
+  if [ ! -f "$OPENLINKHUB_ARCHIVE" ] ||
+     ! printf '%s  %s\n' "$OPENLINKHUB_SHA256" "$OPENLINKHUB_ARCHIVE" |
+       sha256sum --check --status; then
+    rm -f "${OPENLINKHUB_ARCHIVE}.part" "$OPENLINKHUB_ARCHIVE"
+    curl --fail --location --retry 3 --retry-delay 3 \
+      --output "${OPENLINKHUB_ARCHIVE}.part" "$OPENLINKHUB_URL"
+    printf '%s  %s\n' "$OPENLINKHUB_SHA256" "${OPENLINKHUB_ARCHIVE}.part" |
+      sha256sum --check --status
+    mv "${OPENLINKHUB_ARCHIVE}.part" "$OPENLINKHUB_ARCHIVE"
+  fi
+  rm -rf "${OPENLINKHUB_ROOT}.part"
+  mkdir -p "${OPENLINKHUB_ROOT}.part"
+  tar -xzf "$OPENLINKHUB_ARCHIVE" --strip-components=1 \
+    -C "${OPENLINKHUB_ROOT}.part"
+  rm -rf "$OPENLINKHUB_ROOT"
+  mv "${OPENLINKHUB_ROOT}.part" "$OPENLINKHUB_ROOT"
+  chmod 0700 "$OPENLINKHUB_BIN"
+fi
+
+cat > "${OPENLINKHUB_ROOT}/config.json" <<'JSON'
+{
+  "debug": false,
+  "listenPort": 27003,
+  "listenAddress": "127.0.0.1",
+  "cpuSensorChip": "",
+  "manual": true,
+  "frontend": false,
+  "metrics": false,
+  "resumeDelay": 15000,
+  "memory": false,
+  "memorySmBus": "i2c-0",
+  "memoryType": 5,
+  "exclude": [],
+  "decodeMemorySku": true,
+  "memorySku": "",
+  "logFile": "-",
+  "logLevel": "info",
+  "enhancementKits": [],
+  "temperatureOffset": 0,
+  "amdGpuIndex": 0,
+  "amdsmiPath": "",
+  "checkDevicePermission": false,
+  "cpuTempFile": "",
+  "graphProfiles": false,
+  "ramTempViaHwmon": false,
+  "nvidiaGpuIndex": [0],
+  "defaultNvidiaGPU": 0,
+  "openRGBPort": 6743,
+  "enableOpenRGBTargetServer": false,
+  "enableGamepad": false,
+  "enableMotherboard": false,
+  "motherboardBiosOnExit": false,
+  "memoryRegisterOverride": []
+}
+JSON
+
+(
+  cd "$OPENLINKHUB_ROOT"
+  exec "$OPENLINKHUB_BIN"
+) >> "${LOG_DIR}/openlinkhub.log" 2>&1 &
+OPENLINKHUB_PID="$!"
+
+for _ in $(seq 1 30); do
+  if python3 - <<'PY'
+import urllib.request
+urllib.request.urlopen("http://127.0.0.1:27003/api/", timeout=1).read(128)
+PY
+  then
+    break
+  fi
+  if ! kill -0 "$OPENLINKHUB_PID" 2>/dev/null; then
+    set_status error "OpenLinkHub exited during startup; the fan controller was not started."
+    wait "$STATUS_PID"
+  fi
+  sleep 1
+done
+
+if ! python3 - <<'PY'
+import urllib.request
+urllib.request.urlopen("http://127.0.0.1:27003/api/", timeout=2).read(128)
+PY
+then
+  set_status error "OpenLinkHub did not become ready within 30 seconds."
+  wait "$STATUS_PID"
+fi
+
+python3 -u "${APP_DIR}/fan_controller.py" >> "${LOG_DIR}/fan-controller.log" 2>&1 &
+FAN_PID="$!"
 
 if [ "$(uname -m)" != "x86_64" ]; then
   set_status blocked "This release supports x86-64 hosts only."
@@ -319,6 +434,37 @@ if ! nvidia-smi > "${STATUS_DIR}/nvidia-smi.txt" 2>&1; then
   wait "$STATUS_PID"
 fi
 
+FAN_READY="false"
+for _ in $(seq 1 30); do
+  if python3 - "${STATUS_DIR}/fan-status.json" <<'PY'
+import json
+import pathlib
+import sys
+
+try:
+    status = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+except (OSError, json.JSONDecodeError):
+    raise SystemExit(1)
+healthy = status.get("healthy") is True
+at_full = int(status.get("target_percent") or 0) == 100
+spinning = int(status.get("reported_rpm") or 0) > 0
+raise SystemExit(0 if healthy and at_full and spinning else 1)
+PY
+  then
+    FAN_READY="true"
+    break
+  fi
+  if ! kill -0 "$OPENLINKHUB_PID" 2>/dev/null ||
+     ! kill -0 "$FAN_PID" 2>/dev/null; then
+    break
+  fi
+  sleep 1
+done
+if [ "$FAN_READY" != "true" ]; then
+  set_status blocked "Commander DUO Fan Port 1 did not confirm 100% with nonzero RPM. Ollama was not started."
+  wait "$STATUS_PID"
+fi
+
 set_status gpu_ready "Tesla P100 validated. Starting the private Ollama service."
 "$OLLAMA_BIN" serve >> "${LOG_DIR}/ollama.log" 2>&1 &
 OLLAMA_PID="$!"
@@ -345,7 +491,17 @@ if [ "$(cat "${STATUS_DIR}/state")" != "ready" ]; then
 fi
 
 THERMAL_STOP="false"
+CONTROL_FAILURE="false"
 while kill -0 "$OLLAMA_PID" 2>/dev/null; do
+  if ! kill -0 "$OPENLINKHUB_PID" 2>/dev/null ||
+     ! kill -0 "$FAN_PID" 2>/dev/null; then
+    THERMAL_STOP="true"
+    CONTROL_FAILURE="true"
+    set_status thermal_stop "The fail-safe fan-control service stopped; stopping Ollama and restarting the runtime."
+    force_fan_100
+    kill "$OLLAMA_PID" 2>/dev/null || true
+    break
+  fi
   GPU_TEMP="$(
     nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader,nounits 2>/dev/null |
       awk 'NR == 1 {print int($1)}'
@@ -365,5 +521,8 @@ EXIT_CODE="$?"
 set -e
 if [ "$THERMAL_STOP" != "true" ]; then
   set_status error "Ollama exited with code ${EXIT_CODE}."
+fi
+if [ "$CONTROL_FAILURE" = "true" ]; then
+  exit 1
 fi
 wait "$STATUS_PID"

@@ -30,6 +30,8 @@
           <h2>GPU</h2>
           <dl>
             <div><dt>Device</dt><dd id="gpu-name">—</dd></div>
+            <div><dt>Selected UUID</dt><dd id="gpu-uuid">—</dd></div>
+            <div><dt>PCI bus ID</dt><dd id="gpu-pci">—</dd></div>
             <div><dt>Temperature</dt><dd id="gpu-temp">—</dd></div>
             <div><dt>VRAM</dt><dd id="gpu-memory">—</dd></div>
             <div><dt>Utilization</dt><dd id="gpu-util">—</dd></div>
@@ -49,6 +51,58 @@
             <div><dt>Storage</dt><dd id="storage">—</dd></div>
           </dl>
         </article>
+      </section>
+
+      <section class="fan-control">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">FAIL-SAFE COOLING</p>
+            <h2>Commander DUO · P100 fan</h2>
+            <p>
+              PoCiSys controls only the discovered fan on physical PWM Fan
+              Port 1. Any missing GPU data, controller fault, zero RPM, or
+              worker shutdown commands 100%.
+            </p>
+          </div>
+          <span id="fan-state" class="pill starting">DISCOVERING</span>
+        </div>
+        <div class="fan-grid">
+          <dl>
+            <div><dt>USB device</dt><dd id="fan-usb">—</dd></div>
+            <div><dt>Product</dt><dd id="fan-product">—</dd></div>
+            <div><dt>Serial</dt><dd id="fan-serial">—</dd></div>
+            <div><dt>Fan port</dt><dd id="fan-port">—</dd></div>
+            <div><dt>Temperature probe 1</dt><dd id="fan-probe-1">—</dd></div>
+            <div><dt>Temperature probe 2</dt><dd id="fan-probe-2">—</dd></div>
+          </dl>
+          <dl>
+            <div><dt>Reported RPM</dt><dd id="fan-rpm">—</dd></div>
+            <div><dt>Commanded speed</dt><dd id="fan-target">—</dd></div>
+            <div><dt>Control reason</dt><dd id="fan-mode">—</dd></div>
+            <div><dt>Automatic mode</dt><dd id="fan-automatic">Disabled</dd></div>
+          </dl>
+        </div>
+        <div class="calibration">
+          <div>
+            <h3>Controlled idle calibration</h3>
+            <p>
+              With inference stopped, run these 25-second tests in order.
+              Every test automatically returns to 100%; initial deployment
+              never commands below 40%.
+            </p>
+          </div>
+          <div class="calibration-buttons">
+            <button type="button" data-fan-duty="100">Test 100%</button>
+            <button type="button" data-fan-duty="70">Test 70%</button>
+            <button type="button" data-fan-duty="50">Test 50%</button>
+            <button type="button" data-fan-duty="40">Test 40%</button>
+          </div>
+          <p id="fan-result" class="fan-result" hidden></p>
+          <div class="fan-actions">
+            <button id="force-fan" class="secondary" type="button">Force 100%</button>
+            <button id="toggle-automatic" type="button" disabled>Enable Automatic Control</button>
+          </div>
+        </div>
       </section>
 
       <section class="endpoint">
