@@ -2,7 +2,7 @@ manifestVersion: 1
 id: pocisys-hash-monitor
 category: bitcoin
 name: PoCiSys Hash Monitor
-version: "1.9.2"
+version: "1.9.3"
 tagline: Live SHA-256 fleet monitoring with optional LuxOS control
 icon: https://raw.githubusercontent.com/12gaugekenshin/PoCi-Hash-Monitor/main/pocisys-hash-monitor/icon-v2.png
 description: >-
@@ -35,9 +35,9 @@ gallery:
   - https://raw.githubusercontent.com/12gaugekenshin/PoCi-Hash-Monitor/HEAD/pocisys-hash-monitor/1.png
   - https://raw.githubusercontent.com/12gaugekenshin/PoCi-Hash-Monitor/HEAD/pocisys-hash-monitor/2.png
 releaseNotes: >-
-  Restores the live accepted-share feed when PoCiSys Public Pool Port exposes
-  both its native status API and Public Pool compatibility routes. Exact share
-  difficulties, workers, and the bounded last-ten feed are recognized again.
+  Shows which worker/device reached each pool's session-best and all-time-best
+  accepted-share difficulty. The winning all-time worker label is persisted as
+  one bounded metadata field per pool; the ten-share history cap is unchanged.
 dependencies: []
 path: ""
 defaultUsername: ""

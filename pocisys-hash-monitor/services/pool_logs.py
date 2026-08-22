@@ -140,7 +140,9 @@ class PoolLogService:
         self.seen_blocks = {}
         self.share_history = {}
         self.all_time_best = {}
+        self.all_time_best_worker = {}
         self.session_best = {}
+        self.session_best_worker = {}
         self.reset_after = {}
         self.running = False
         self.task = None
@@ -170,6 +172,9 @@ class PoolLogService:
                 best = _difficulty(saved.get("all_time_best"))
                 if best is not None:
                     self.all_time_best[key] = best
+                best_worker = str(saved.get("all_time_best_worker") or "").strip()[:128]
+                if best_worker:
+                    self.all_time_best_worker[key] = best_worker
                 reset_after = saved.get("reset_after_ms")
                 if isinstance(reset_after, (int, float)) and reset_after > 0:
                     self.reset_after[key] = int(reset_after)
@@ -180,13 +185,14 @@ class PoolLogService:
         if not self.history_path:
             return
         self.history_path.parent.mkdir(parents=True, exist_ok=True)
-        keys = set(self.share_history) | set(self.all_time_best) | set(self.reset_after)
+        keys = set(self.share_history) | set(self.all_time_best) | set(self.all_time_best_worker) | set(self.reset_after)
         payload = {
-            "version": 1,
+            "version": 2,
             "pools": {
                 key: {
                     "shares": list(self.share_history.get(key, ()))[:MAX_ACCEPTED_SHARES_PER_POOL],
                     "all_time_best": self.all_time_best.get(key),
+                    "all_time_best_worker": self.all_time_best_worker.get(key),
                     "reset_after_ms": self.reset_after.get(key),
                 }
                 for key in keys
@@ -208,7 +214,9 @@ class PoolLogService:
         self.seen_blocks = {key: value for key, value in self.seen_blocks.items() if key in active_ids}
         self.share_history = {key: value for key, value in self.share_history.items() if key in active_ids}
         self.all_time_best = {key: value for key, value in self.all_time_best.items() if key in active_ids}
+        self.all_time_best_worker = {key: value for key, value in self.all_time_best_worker.items() if key in active_ids}
         self.session_best = {key: value for key, value in self.session_best.items() if key in active_ids}
+        self.session_best_worker = {key: value for key, value in self.session_best_worker.items() if key in active_ids}
         self.reset_after = {key: value for key, value in self.reset_after.items() if key in active_ids}
         self.pools = pools
         self._save_share_history()
@@ -219,7 +227,9 @@ class PoolLogService:
         active_ids = {self._key(pool) for pool in self.pools}
         self.share_history.clear()
         self.all_time_best.clear()
+        self.all_time_best_worker.clear()
         self.session_best.clear()
+        self.session_best_worker.clear()
         self.reset_after = {key: reset_after_ms for key in active_ids}
         self._save_share_history()
         return {
@@ -254,7 +264,9 @@ class PoolLogService:
             "highest_recent_share_id": highest_id,
             "average_share_difficulty": sum(difficulties) / len(difficulties) if difficulties else None,
             "session_best_difficulty": self.session_best.get(key),
+            "session_best_worker": self.session_best_worker.get(key),
             "all_time_best_difficulty": self.all_time_best.get(key),
+            "all_time_best_worker": self.all_time_best_worker.get(key),
             "network_difficulty": network_difficulty,
         }
 
@@ -310,8 +322,14 @@ class PoolLogService:
                 changed = True
             by_id[share["id"]] = share
             best = share["difficulty"]
-            self.session_best[key] = max(best, self.session_best.get(key, 0))
-            self.all_time_best[key] = max(best, self.all_time_best.get(key, 0))
+            if best > self.session_best.get(key, 0) or (best == self.session_best.get(key) and not self.session_best_worker.get(key)):
+                self.session_best[key] = best
+                self.session_best_worker[key] = share["worker"]
+                changed = True
+            if best > self.all_time_best.get(key, 0) or (best == self.all_time_best.get(key) and not self.all_time_best_worker.get(key)):
+                self.all_time_best[key] = best
+                self.all_time_best_worker[key] = share["worker"]
+                changed = True
         merged = sorted(by_id.values(), key=lambda item: (item["timestamp_ms"], item["id"]), reverse=True)
         merged = merged[:MAX_ACCEPTED_SHARES_PER_POOL]
         if [item["id"] for item in merged] != [item["id"] for item in current]:
@@ -406,13 +424,29 @@ class PoolLogService:
                     "best_difficulty": item.get("bestDifficulty"),
                     "last_seen": item.get("lastSeen") or item.get("updatedAt"),
                 })
-            worker_best = max((_difficulty(item.get("best_difficulty")) or 0 for item in normalized_workers), default=0)
+            best_worker = max(normalized_workers, key=lambda item: _difficulty(item.get("best_difficulty")) or 0, default=None)
+            worker_best = _difficulty(best_worker.get("best_difficulty")) if best_worker else 0
+            worker_best_name = str(best_worker.get("name") or "")[:128] if best_worker else ""
             client_best = _difficulty(client.get("bestDifficulty")) if isinstance(client, dict) else None
             prior_all_time = self.all_time_best.get(key, 0)
+            prior_all_time_worker = self.all_time_best_worker.get(key)
             if (worker_best or client_best) and not self.reset_after.get(key):
-                self.session_best[key] = max(worker_best, client_best or 0, self.session_best.get(key, 0))
-                self.all_time_best[key] = max(self.session_best[key], self.all_time_best.get(key, 0))
-                if self.all_time_best[key] != prior_all_time:
+                observed_best = max(worker_best or 0, client_best or 0)
+                observed_worker = worker_best_name if worker_best and worker_best >= (client_best or 0) else ""
+                if observed_best > self.session_best.get(key, 0):
+                    self.session_best[key] = observed_best
+                    if observed_worker:
+                        self.session_best_worker[key] = observed_worker
+                if self.session_best.get(key, 0) > self.all_time_best.get(key, 0):
+                    self.all_time_best[key] = self.session_best[key]
+                    session_worker = self.session_best_worker.get(key)
+                    if session_worker:
+                        self.all_time_best_worker[key] = session_worker
+                elif self.session_best.get(key) == self.all_time_best.get(key) and not self.all_time_best_worker.get(key):
+                    session_worker = self.session_best_worker.get(key)
+                    if session_worker:
+                        self.all_time_best_worker[key] = session_worker
+                if self.all_time_best[key] != prior_all_time or self.all_time_best_worker.get(key) != prior_all_time_worker:
                     self._save_share_history()
 
             self.latest[key] = {

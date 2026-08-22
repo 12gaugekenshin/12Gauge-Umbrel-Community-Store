@@ -55,11 +55,11 @@ for hardware damage, overheating, downtime, lost mining revenue, increased power
 costs, data loss, or other direct or indirect damages. Users are responsible for
 verifying power, cooling, firmware, and manufacturer limits.
 
-## Latest release — v1.9.2
+## Latest release — v1.9.3
 
-Restores the live accepted-share feed when PoCiSys Public Pool Port exposes both
-its native status API and Public Pool compatibility routes. Exact share
-difficulties, workers, and the bounded last-ten feed are recognized again.
+Shows which worker/device reached each pool's session-best and all-time-best
+accepted-share difficulty. The winning all-time worker label is persisted as
+one bounded metadata field per pool; the ten-share history cap is unchanged.
 
 Source and support: [PoCiSys Hash Monitor on GitHub](https://github.com/12gaugekenshin/PoCi-Hash-Monitor)
 
