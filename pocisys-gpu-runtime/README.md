@@ -4,7 +4,7 @@ PoCiSys GPU Runtime runs a private Ollama service on a supported NVIDIA Tesla
 P100 inside Umbrel. Its dashboard handles driver setup, GPU health, local model
 storage, and safe model tests.
 
-Version 0.1.10 also provides fail-safe P100 cooling through a Corsair Commander
+Version 0.1.11 also provides fail-safe P100 cooling through a Corsair Commander
 DUO and OpenLinkHub. The app will not start Ollama unless the configured fan is
 confirmed at 100% with nonzero RPM.
 

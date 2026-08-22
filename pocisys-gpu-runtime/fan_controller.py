@@ -38,7 +38,7 @@ CALIBRATION_FILE = Path(
     os.environ.get("POCISYS_FAN_CALIBRATION_FILE", "/data/fan-calibration.json")
 )
 OPENLINKHUB_URL = os.environ.get(
-    "POCISYS_OPENLINKHUB_URL", "http://127.0.0.1:27003"
+    "POCISYS_OPENLINKHUB_API_URL", "http://127.0.0.1:27003"
 ).rstrip("/")
 POLL_SECONDS = max(1.0, float(os.environ.get("POCISYS_FAN_POLL_SECONDS", "2")))
 BUSY_THRESHOLD_PERCENT = 10.0
@@ -48,7 +48,8 @@ COMMAND_HEARTBEAT_SECONDS = 30.0
 RPM_SETTLE_SECONDS = 5.0
 CALIBRATION_DUTIES = {100, 70, 50, 40}
 CALIBRATION_ORDER = (100, 70, 50, 40)
-EXPECTED_PRODUCT = "iCUE COMMANDER DUO"
+EXPECTED_PRODUCTS = {"COMMANDER DUO", "iCUE COMMANDER DUO"}
+EXPECTED_PRODUCT_LABEL = "Commander DUO"
 
 
 def atomic_write_json(path: Path, value: object) -> None:
@@ -218,12 +219,12 @@ class OpenLinkHubClient:
             product = str(outer.get("Product") or detail.get("product") or "")
             serial = str(outer.get("Serial") or detail.get("serial") or key)
             observed_devices.append(f"{product or 'unnamed'} [{serial or key}]")
-            if product == EXPECTED_PRODUCT and (not configured_serial or serial == configured_serial):
+            if product in EXPECTED_PRODUCTS and (not configured_serial or serial == configured_serial):
                 duos.append((serial, detail))
         if len(duos) != 1:
             observed = ", ".join(observed_devices) or "none"
             raise RuntimeError(
-                f"Expected exactly one {EXPECTED_PRODUCT}, found {len(duos)}; "
+                f"Expected exactly one {EXPECTED_PRODUCT_LABEL}, found {len(duos)}; "
                 f"OpenLinkHub devices: {observed}"
             )
 
@@ -266,7 +267,7 @@ class OpenLinkHubClient:
             channels.append(
                 FanTarget(
                     serial=serial,
-                    product=EXPECTED_PRODUCT,
+                    product=str(detail.get("product") or EXPECTED_PRODUCT_LABEL),
                     channel_id=channel,
                     physical_port=channel + 1,
                     name=str(raw.get("name") or f"Fan Channel {channel + 1}"),
