@@ -55,12 +55,11 @@ for hardware damage, overheating, downtime, lost mining revenue, increased power
 costs, data loss, or other direct or indirect damages. Users are responsible for
 verifying power, cooling, firmware, and manufacturer limits.
 
-## Latest release — v1.9.1
+## Latest release — v1.9.2
 
-Adds fleet-wide total-share, session-best, and best-recorded difficulty metrics
-to the main dashboard and Screen page. Settings can now reset PoCiSys's bounded
-local pool share and difficulty records without changing miner or upstream pool
-counters.
+Restores the live accepted-share feed when PoCiSys Public Pool Port exposes both
+its native status API and Public Pool compatibility routes. Exact share
+difficulties, workers, and the bounded last-ten feed are recognized again.
 
 Source and support: [PoCiSys Hash Monitor on GitHub](https://github.com/12gaugekenshin/PoCi-Hash-Monitor)
 

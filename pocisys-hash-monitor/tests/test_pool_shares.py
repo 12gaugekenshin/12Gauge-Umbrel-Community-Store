@@ -20,7 +20,13 @@ class PoCiSysPortApi(BaseHTTPRequestHandler):
         pass
 
     def do_GET(self):
-        if self.path == "/api/status":
+        if self.path == "/api/pool":
+            payload = {
+                "totalHashRate": 42_000_000_000_000,
+                "totalMiners": 1,
+                "blockHeight": 900_001,
+            }
+        elif self.path == "/api/status":
             payload = {
                 "connection": {"pool": True},
                 "workers": [{"clientName": "loki", "hashRate": 42_000_000_000_000, "bestDifficulty": 99}],

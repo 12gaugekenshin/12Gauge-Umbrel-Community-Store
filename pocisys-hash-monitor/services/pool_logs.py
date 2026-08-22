@@ -45,15 +45,9 @@ def _api_json(url: str, timeout: float = 4.0):
 
 def _pool_snapshot(base: str, timeout: float = 4.0):
     errors = []
-    try:
-        payload = _api_json(f"{base}/api/pool", timeout=timeout)
-        required = {"totalHashRate", "blockHeight", "totalMiners"}
-        if isinstance(payload, dict) and required.intersection(payload):
-            return "public_pool", payload, None
-        errors.append("/api/pool returned an unrecognized object")
-    except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
-        errors.append(str(exc))
-
+    # Probe the richer PoCiSys status endpoint first. Public Pool Port also
+    # exposes /api/pool for compatibility, so probing that generic route first
+    # incorrectly classifies it and silently disables its accepted-share feed.
     try:
         status = _api_json(f"{base}/api/status", timeout=timeout)
         if isinstance(status, dict) and isinstance(status.get("connection"), dict) and "workers" in status:
@@ -67,6 +61,15 @@ def _pool_snapshot(base: str, timeout: float = 4.0):
             }
             return "pocisys_pool_port", normalized, status
         errors.append("/api/status returned an unrecognized object")
+    except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
+        errors.append(str(exc))
+
+    try:
+        payload = _api_json(f"{base}/api/pool", timeout=timeout)
+        required = {"totalHashRate", "blockHeight", "totalMiners"}
+        if isinstance(payload, dict) and required.intersection(payload):
+            return "public_pool", payload, None
+        errors.append("/api/pool returned an unrecognized object")
     except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
         errors.append(str(exc))
     raise ValueError("This does not look like Public Pool or PoCiSys Public Pool Port: " + "; ".join(errors[-2:]))
