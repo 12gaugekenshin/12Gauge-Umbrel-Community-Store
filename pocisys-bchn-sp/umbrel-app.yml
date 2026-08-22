@@ -2,7 +2,7 @@ manifestVersion: 1
 id: pocisys-bchn-sp
 category: bitcoin
 name: PoCiSys BCHN&SP
-version: "0.1.0"
+version: "0.1.1"
 tagline: Pruned Bitcoin Cash node and LuxOS-ready solo pool
 icon: https://raw.githubusercontent.com/12gaugekenshin/PoCiSys-BCHN-SP/main/icon.png
 description: >-
@@ -23,9 +23,8 @@ path: ""
 defaultUsername: ""
 defaultPassword: ""
 releaseNotes: >-
-  Initial preview: BCHN 29.1.0, 10 GiB automatic pruning, private RPC, BCH-native
-  solo Stratum on port 3335, LuxOS-compatible CashAddr worker authorization,
-  bounded live telemetry, and PoCiSys monitoring compatibility on LAN port 2021.
+  Fixes Umbrel installation failures caused by occupied default LAN ports. The
+  read-only API now uses port 2022 and BCH peer traffic uses port 8337.
 widgets:
   - id: bchn-status
     type: four-stats

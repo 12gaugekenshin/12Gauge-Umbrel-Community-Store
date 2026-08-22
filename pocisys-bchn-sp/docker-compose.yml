@@ -14,7 +14,7 @@ services:
       - node
       - engine
     ports:
-      - "2021:8080/tcp"
+      - "2022:8080/tcp"
     environment:
       PORT: 8080
       ENGINE_URL: http://engine:8081
@@ -41,7 +41,7 @@ services:
     volumes:
       - ${APP_DATA_DIR}/data/bchn:/data
     ports:
-      - "8336:8333/tcp"
+      - "8337:8333/tcp"
     command:
       - bitcoind
       - -datadir=/data

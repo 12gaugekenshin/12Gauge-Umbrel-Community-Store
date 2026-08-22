@@ -19,8 +19,8 @@ PoCiSys never receives or stores a private key and never holds a payout balance.
 - Containers have hard memory limits: node 1 GiB, engine 256 MiB, dashboard 128 MiB.
 - Only 512 worker identities and 50 accepted-share summaries are retained in RAM.
 - The dashboard displays the newest 10; share history resets with the engine.
-- RPC is private to the app network. Only P2P 8336, Stratum 3335, and read-only
-  telemetry 2021 are published on the host.
+- RPC is private to the app network. Only P2P 8337, Stratum 3335, and read-only
+  telemetry 2022 are published on the host.
 
 Expect roughly 11–20 GiB total storage after synchronization: the 10 GiB prune
 target does not include chainstate, indexes, logs, or container layers.
