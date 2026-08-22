@@ -15,7 +15,7 @@ services:
     mem_limit: 2g
     memswap_limit: 4g
     environment:
-      POCISYS_SOURCE_ZIP: https://codeload.github.com/12gaugekenshin/PoCiSys-GPU-Runtime/zip/refs/tags/v0.1.9
+      POCISYS_SOURCE_ZIP: https://codeload.github.com/12gaugekenshin/PoCiSys-GPU-Runtime/zip/refs/tags/v0.1.10
       POCISYS_EXPECTED_PCI_ID: "10de:15f8"
       POCISYS_NVIDIA_DRIVER_VERSION: "570.144"
       POCISYS_NVIDIA_DRIVER_SHA256: "f3532d135c934c1a25480275da3cf8edb32aa6c5fccef64f657463c26e26fb70"

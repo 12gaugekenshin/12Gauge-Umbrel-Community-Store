@@ -178,7 +178,7 @@ PY
 export OLLAMA_CONTEXT_LENGTH="${RUNTIME_SETTINGS[0]:-4096}"
 export OLLAMA_KEEP_ALIVE="${RUNTIME_SETTINGS[1]:-0}"
 
-write_field app_version "0.1.9"
+write_field app_version "0.1.10"
 write_field ollama_context_length "$OLLAMA_CONTEXT_LENGTH"
 write_field ollama_keep_alive "$OLLAMA_KEEP_ALIVE"
 write_field driver_version "$DRIVER_VERSION"
@@ -282,7 +282,10 @@ then
   wait "$STATUS_PID"
 fi
 
-python3 -u "${APP_DIR}/fan_controller.py" >> "${LOG_DIR}/fan-controller.log" 2>&1 &
+(
+  exec > >(tee -a "${LOG_DIR}/fan-controller.log") 2>&1
+  exec python3 -u "${APP_DIR}/fan_controller.py"
+) &
 FAN_PID="$!"
 
 if [ "$(uname -m)" != "x86_64" ]; then

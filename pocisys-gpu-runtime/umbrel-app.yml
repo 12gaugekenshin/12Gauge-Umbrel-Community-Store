@@ -2,7 +2,7 @@ manifestVersion: 1
 id: pocisys-gpu-runtime
 category: ai
 name: PoCiSys GPU Runtime
-version: "0.1.9"
+version: "0.1.10"
 tagline: Run private local AI on your Tesla P100
 icon: https://raw.githubusercontent.com/12gaugekenshin/PoCiSys-GPU-Runtime/main/pocisys-gpu-runtime/icon-v2.png
 description: >-
@@ -21,9 +21,9 @@ support: https://github.com/12gaugekenshin/PoCiSys-GPU-Runtime/issues
 port: 8780
 gallery: []
 releaseNotes: >-
-  Fixes Commander DUO startup by installing OpenLinkHub's required PipeWire
-  runtime library. OpenLinkHub startup output is now mirrored into Umbrel's
-  troubleshooting log while remaining available on persistent storage.
+  Adds direct Commander DUO discovery diagnostics to the cooling dashboard and
+  mirrors fan-controller output into Umbrel troubleshooting logs. Safety gates
+  remain closed until Fan Port 1 reports nonzero RPM at 100%.
 dependencies: []
 path: ""
 defaultUsername: ""

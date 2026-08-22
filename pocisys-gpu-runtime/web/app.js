@@ -61,6 +61,7 @@ function renderFan(fan) {
   setText("fan-rpm", fan?.reported_rpm ? `${fan.reported_rpm} RPM` : "No RPM");
   setText("fan-target", fan?.target_percent ? `${fan.target_percent}%` : "100% fail-safe");
   setText("fan-mode", humanMode(fan?.mode));
+  setText("fan-error", hub.error, healthy ? "None" : "Waiting for controller detail");
   setText("fan-automatic", fan?.automatic_enabled ? "Enabled" : "Disabled");
 
   const calibrated = fan?.calibrated_duties || {};

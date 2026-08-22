@@ -208,6 +208,7 @@ class OpenLinkHubClient:
             raise RuntimeError("OpenLinkHub device API is unavailable")
 
         duos: list[tuple[str, dict[str, Any]]] = []
+        observed_devices: list[str] = []
         for key, outer in devices.items():
             if not isinstance(outer, dict):
                 continue
@@ -216,15 +217,24 @@ class OpenLinkHubClient:
                 continue
             product = str(outer.get("Product") or detail.get("product") or "")
             serial = str(outer.get("Serial") or detail.get("serial") or key)
+            observed_devices.append(f"{product or 'unnamed'} [{serial or key}]")
             if product == EXPECTED_PRODUCT and (not configured_serial or serial == configured_serial):
                 duos.append((serial, detail))
         if len(duos) != 1:
-            raise RuntimeError(f"Expected exactly one {EXPECTED_PRODUCT}, found {len(duos)}")
+            observed = ", ".join(observed_devices) or "none"
+            raise RuntimeError(
+                f"Expected exactly one {EXPECTED_PRODUCT}, found {len(duos)}; "
+                f"OpenLinkHub devices: {observed}"
+            )
 
         serial, detail = duos[0]
         channel_map = detail.get("devices")
         if not isinstance(channel_map, dict):
-            raise RuntimeError("Commander DUO returned no PWM channel data")
+            keys = ", ".join(sorted(str(key) for key in detail)) or "none"
+            raise RuntimeError(
+                "Commander DUO returned no PWM channel data; "
+                f"device fields: {keys}"
+            )
         probes: list[dict[str, Any]] = []
         for raw in channel_map.values():
             if not isinstance(raw, dict):
@@ -269,8 +279,19 @@ class OpenLinkHubClient:
             if len(spinning) == 1:
                 return spinning[0]
         if len(channels) != 1:
+            available = []
+            for raw in channel_map.values():
+                if isinstance(raw, dict):
+                    available.append(
+                        "channel="
+                        f"{raw.get('channelId', '?')} "
+                        f"speed={raw.get('HasSpeed', raw.get('hasSpeed', False))} "
+                        f"rpm={int(numeric(raw.get('rpm')) or 0)} "
+                        f"type={raw.get('description', raw.get('name', 'unknown'))}"
+                    )
             raise RuntimeError(
-                "Unable to identify one connected Commander DUO PWM fan channel"
+                "Unable to identify one connected Commander DUO PWM fan channel; "
+                f"reported channels: {', '.join(available) or 'none'}"
             )
         return channels[0]
 
