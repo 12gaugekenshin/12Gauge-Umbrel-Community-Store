@@ -36,7 +36,7 @@ from services.luxos_control import LuxOSControlError, LuxOSControlService
 from services.validation import ApiError, as_float, as_int, clean_host, clean_miner, clean_pool
 
 
-APP_VERSION = "1.9.3"
+APP_VERSION = "2.0.0"
 ROOT = Path(__file__).resolve().parent
 WEB_ROOT = ROOT / "web"
 CONFIG_PATH = Path(os.environ.get("POCISYS_CONFIG_PATH", ROOT / "config.json")).resolve()
@@ -210,6 +210,29 @@ def odds_status():
     return calculate_odds(poller.statuses(), config, network_data.snapshot())
 
 
+def app_self_health():
+    try:
+        config_bytes = CONFIG_PATH.stat().st_size
+    except OSError:
+        config_bytes = None
+    return {
+        "version": APP_VERSION,
+        "system": system_stats.snapshot(),
+        "poller": poller.metrics(),
+        "bounded_state": {
+            "configured_miners": len(config.get("miners", [])),
+            "configured_pools": len(config.get("pools", [])),
+            "recent_alerts": len(alerts.alert_feed),
+            "recent_alert_limit": alerts.alert_feed.maxlen,
+            "pool_events": len(pool_logs.events),
+            "pool_event_limit": pool_logs.events.maxlen,
+            "accepted_shares": sum(len(items) for items in pool_logs.share_history.values()),
+            "accepted_share_limit_per_pool": 10,
+            "config_bytes": config_bytes,
+        },
+    }
+
+
 def hermes_overview():
     miners = hermes_miners()
     pools = hermes_pools()
@@ -308,6 +331,7 @@ async def api_dispatch(method, path, data):
             "pool_event_count": len(pool_logs.events),
             "control": luxos_control.status(),
             "health": health_engine.status(),
+            "self_health": app_self_health(),
             "ui": {
                 "dashboard_density": config.get("app", {}).get("dashboard_density", "comfortable"),
                 "difficulty_rain_enabled": config.get("app", {}).get("difficulty_rain_enabled", True),

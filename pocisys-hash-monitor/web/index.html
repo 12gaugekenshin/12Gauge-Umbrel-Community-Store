@@ -231,6 +231,12 @@
           </div>
         </section>
 
+        <section class="settings-card runtime-health-card">
+          <div class="settings-card-head"><span class="settings-icon">✓</span><div><h2>App self-health</h2><p>Live, bounded runtime state for troubleshooting and memory checks.</p></div></div>
+          <div id="runtime-health" class="runtime-health-grid"><div class="empty compact-empty">Waiting for runtime telemetry.</div></div>
+          <p class="settings-explainer">These are current snapshots only. PoCiSys does not retain CPU, RAM, polling, or queue history.</p>
+        </section>
+
         <section class="settings-card data-tools-card">
           <div class="settings-card-head"><span class="settings-icon">⇄</span><div><h2>Backup &amp; recovery</h2><p>Move this small configuration between PoCiSys installations.</p></div></div>
           <p class="settings-explainer">The safe backup includes miner addresses, names, groups, pool setup, thresholds, and app settings. Discord webhook and Hermes authentication values are deliberately excluded. Import replaces the configured miners and pools after validating every entry, while any credentials already saved on this installation remain untouched.</p>

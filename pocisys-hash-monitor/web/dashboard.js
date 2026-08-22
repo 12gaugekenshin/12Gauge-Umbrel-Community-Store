@@ -374,6 +374,14 @@ function summaryMetric(label, value, sub = "", className = "") {
   return `<div class="metric"><span class="metric-label">${label}</span><strong class="metric-value ${className}">${value}</strong><span class="metric-sub">${sub}</span></div>`;
 }
 
+function telemetryFreshness(checkedAt) {
+  const checked = appDate(checkedAt);
+  if (!checked) return {label: "Telemetry unknown", stale: true};
+  const seconds = Math.max(0, Math.floor((Date.now() - checked.getTime()) / 1000));
+  const threshold = Math.max(15, Number(settings?.poll_interval_seconds || DEFAULT_SETTINGS.poll_interval_seconds) * 3);
+  return {label: seconds < 2 ? "Fresh now" : `${seconds}s old`, stale: seconds > threshold};
+}
+
 function renderSummary() {
   const summary = state.summary;
   const onlineClass = !summary.total_miners ? "" : summary.online_miners === summary.total_miners ? "good" : summary.online_miners ? "warn" : "bad";
@@ -398,6 +406,7 @@ function minerCard(miner) {
   const fans = fanSummary(miner);
   const badShares = ["invalid", "stale", "rejected"].reduce((sum, key) => sum + (miner.shares?.[key] || 0), 0);
   const healthState = miner.health?.state || (miner.online && miner.api_ok ? "Unknown" : "Offline");
+  const freshness = telemetryFreshness(miner.checked_at);
   return `<article class="miner-card ${miningTargetClass(miner.mining_target)} health-${escapeHtml(healthState.toLowerCase())} ${miner.online && miner.api_ok ? "online" : "offline"}" data-action="open-miner" data-id="${escapeHtml(miner.id)}" tabindex="0">
     <div class="card-glow"></div>
     <div class="miner-head"><i class="status-dot"></i><div class="miner-title"><strong>${escapeHtml(miner.name)}</strong><small>${privateMarkup(miner.ip)}</small></div><span class="type-badge">${escapeHtml(minerTypeLabel(miner.type))}</span></div>
@@ -412,7 +421,7 @@ function minerCard(miner) {
       <div class="detail"><label>Best session</label><span title="${escapeHtml(miner.difficulty?.best_session)}">${escapeHtml(difficulty(miner.difficulty?.best_session))}</span></div>
       <div class="detail"><label>Best all-time</label><span title="${escapeHtml(miner.difficulty?.best_all_time)}">${escapeHtml(difficulty(miner.difficulty?.best_all_time))}</span></div>
     </div>
-    <div class="card-foot"><span>${escapeHtml(healthState)}</span><strong>View details →</strong></div>
+    <div class="card-foot"><span>${escapeHtml(healthState)} · <em class="${freshness.stale ? "warn" : ""}">${escapeHtml(freshness.label)}</em></span><strong>View details →</strong></div>
     ${(miner.warnings || []).length ? `<div class="warning-strip">${escapeHtml(miner.warnings[0])}</div>` : ""}
   </article>`;
 }
@@ -894,6 +903,25 @@ async function testExternalPool() {
   }
 }
 
+function renderRuntimeHealth() {
+  const target = $("#runtime-health");
+  if (!target) return;
+  const health = state?.self_health || {};
+  const system = health.system || {};
+  const poller = health.poller || {};
+  const bounded = health.bounded_state || {};
+  const rss = system.process_rss_bytes == null ? "N/A" : `${number(system.process_rss_bytes / 1024 / 1024, 1)} MB`;
+  const configSize = bounded.config_bytes == null ? "N/A" : `${number(bounded.config_bytes / 1024, 1)} KB`;
+  target.innerHTML = [
+    ["App memory", rss, "Current process RSS"],
+    ["Last fleet poll", poller.last_duration_ms == null ? "Waiting" : `${number(poller.last_duration_ms, 0)} ms`, `${number(poller.last_online_count || 0, 0)} succeeded · ${number(poller.last_failed_count || 0, 0)} failed`],
+    ["Recent alerts", `${number(bounded.recent_alerts || 0, 0)} / ${number(bounded.recent_alert_limit || 0, 0)}`, "Fixed in-memory queue"],
+    ["Pool events", `${number(bounded.pool_events || 0, 0)} / ${number(bounded.pool_event_limit || 0, 0)}`, "Fixed in-memory queue"],
+    ["Accepted shares", number(bounded.accepted_shares || 0, 0), `${number(bounded.accepted_share_limit_per_pool || 10, 0)} maximum per pool`],
+    ["Configuration", configSize, "Small persisted config"],
+  ].map(([label, value, sub]) => `<article><span>${label}</span><strong>${value}</strong><small>${sub}</small></article>`).join("");
+}
+
 function renderAll() {
   if (!state) return;
   renderSummary();
@@ -905,6 +933,7 @@ function renderAll() {
   renderAcceptedShares();
   renderAlerts();
   renderScreen();
+  renderRuntimeHealth();
   const detailMatch = location.pathname.match(/^\/miners\/([^/]+)$/);
   if (detailMatch) renderMinerDetail(detailMatch[1]);
 }

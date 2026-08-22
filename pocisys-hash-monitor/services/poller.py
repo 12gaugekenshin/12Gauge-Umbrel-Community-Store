@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from datetime import datetime, timezone
 
 from miners import get_driver
@@ -18,6 +19,9 @@ class MinerPoller:
         self.running = False
         self.task = None
         self.wake_event = asyncio.Event()
+        self.last_duration_ms = None
+        self.last_online_count = 0
+        self.last_failed_count = 0
 
     async def _poll_one(self, miner):
         timeout = self.config.get("app", {}).get("request_timeout_seconds", 4)
@@ -73,6 +77,7 @@ class MinerPoller:
         return miner, status
 
     async def poll_now(self):
+        started = time.monotonic()
         miners = [dict(item) for item in self.config.get("miners", []) if item.get("enabled", True)]
         results = await asyncio.gather(*(self._poll_one(miner) for miner in miners))
         self.latest = {
@@ -80,7 +85,18 @@ class MinerPoller:
             for miner, status in results
         }
         self.last_poll = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        self.last_duration_ms = round((time.monotonic() - started) * 1000, 1)
+        self.last_online_count = sum(1 for status in self.latest.values() if status.get("api_ok"))
+        self.last_failed_count = len(self.latest) - self.last_online_count
         return self.statuses()
+
+    def metrics(self):
+        return {
+            "last_poll": self.last_poll,
+            "last_duration_ms": self.last_duration_ms,
+            "last_online_count": self.last_online_count,
+            "last_failed_count": self.last_failed_count,
+        }
 
     def statuses(self):
         order = {

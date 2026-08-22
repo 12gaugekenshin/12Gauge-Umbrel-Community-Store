@@ -65,7 +65,7 @@ class HttpIntegrationTests(unittest.TestCase):
     def test_token_auth_and_mcp_tools_over_http(self):
         status, health = self.request("/health")
         self.assertEqual(status, 200)
-        self.assertEqual(health["version"], "1.9.3")
+        self.assertEqual(health["version"], "2.0.0")
 
         _, generated = self.request("/api/hermes/token", method="POST", body={})
         token = generated["token"]
@@ -123,6 +123,15 @@ class HttpIntegrationTests(unittest.TestCase):
             system_result["result"]["structuredContent"]["system"]["scope"],
             "container-visible host metrics",
         )
+
+    def test_status_exposes_only_bounded_current_self_health(self):
+        _, payload = self.request("/api/status")
+        health = payload["self_health"]
+        self.assertIn("process_rss_bytes", health["system"])
+        self.assertIn("last_duration_ms", health["poller"])
+        self.assertEqual(health["bounded_state"]["recent_alert_limit"], 25)
+        self.assertEqual(health["bounded_state"]["pool_event_limit"], 50)
+        self.assertEqual(health["bounded_state"]["accepted_share_limit_per_pool"], 10)
 
     def test_fleet_summary_includes_total_shares_and_best_difficulties(self):
         statuses = [

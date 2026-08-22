@@ -64,6 +64,16 @@ def _read_uptime():
         return None
 
 
+def _read_process_rss():
+    try:
+        for line in Path("/proc/self/status").read_text(encoding="utf-8", errors="replace").splitlines():
+            if line.startswith("VmRSS:"):
+                return int(line.split()[1]) * 1024
+    except (OSError, ValueError, IndexError):
+        pass
+    return None
+
+
 class SystemStatsService:
     """Cache container-visible host metrics without blocking API requests."""
 
@@ -115,6 +125,7 @@ class SystemStatsService:
             "memory": _read_memory(),
             "disk": disk_payload,
             "uptime_seconds": _read_uptime(),
+            "process_rss_bytes": _read_process_rss(),
             "hostname": platform.node() or None,
             "platform": platform.platform(),
             "sampled_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
