@@ -178,7 +178,7 @@ PY
 export OLLAMA_CONTEXT_LENGTH="${RUNTIME_SETTINGS[0]:-4096}"
 export OLLAMA_KEEP_ALIVE="${RUNTIME_SETTINGS[1]:-0}"
 
-write_field app_version "0.1.8"
+write_field app_version "0.1.9"
 write_field ollama_context_length "$OLLAMA_CONTEXT_LENGTH"
 write_field ollama_keep_alive "$OLLAMA_KEEP_ALIVE"
 write_field driver_version "$DRIVER_VERSION"
@@ -253,8 +253,9 @@ JSON
 
 (
   cd "$OPENLINKHUB_ROOT"
+  exec > >(tee -a "${LOG_DIR}/openlinkhub.log") 2>&1
   exec "$OPENLINKHUB_BIN"
-) >> "${LOG_DIR}/openlinkhub.log" 2>&1 &
+) &
 OPENLINKHUB_PID="$!"
 
 for _ in $(seq 1 30); do
